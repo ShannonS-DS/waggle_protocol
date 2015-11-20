@@ -64,15 +64,15 @@ SEQUENCE = 0
 #The /etc/waggle folder has waggle specific information
 UNIQUEID=None
 with open('/etc/waggle/node_id','r') as file_:
-    UNIQUEID_HEX = file_.read()
+    UNIQUEID_HEX = file_.read().rstrip('\n')
     if len(UNIQUEID_HEX) != 2*HEADER_BYTELENGTHS["s_uniqid"]:
-        logger.error("node id in /etc/waggle/node_id has wrong length")
+        logger.error("node id in /etc/waggle/node_id has wrong length (%d)" % (len(UNIQUEID_HEX)))
         sys.exit(1)
         
     UNIQUEID = bytearray.fromhex(UNIQUEID_HEX)
 
 if len(UNIQUEID) != HEADER_BYTELENGTHS["s_uniqid"]:
-    logger.error("UNIQUEID has wrong length")
+    logger.error("UNIQUEID has wrong length (%d)" % (len(UNIQUEID)))
     sys.exit(1)
 
 logger.debug("UNIQUEID_HEX: %s" % (UNIQUEID_HEX))
