@@ -7,7 +7,7 @@
 from crcmod.predefined import mkCrcFun
 from struct import pack
 import cStringIO as StringIO
-import time, logging
+import time, logging, sys
 
 
 logger = logging.getLogger(__name__)
