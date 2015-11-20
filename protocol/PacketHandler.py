@@ -7,7 +7,11 @@
 from crcmod.predefined import mkCrcFun
 from struct import pack
 import cStringIO as StringIO
-import time
+import time, logging
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
 
 #Where each piece of information in a packet header is stored, by byte
 # Total header size is 40 bytes.
@@ -58,8 +62,21 @@ VERSION = "0.3"
 SEQUENCE = 0
 
 #The /etc/waggle folder has waggle specific information
-with open('/etc/waggle/hostname','r') as file_:
-    UNIQUEID = int(file_.read())
+UNIQUEID=None
+with open('/etc/waggle/node_id','r') as file_:
+    UNIQUEID_HEX = file_.read()
+    if len(UNIQUEID_HEX) != 2*HEADER_BYTELENGTHS["s_uniqid"]:
+        logger.error("node id in /etc/waggle/node_id has wrong length")
+        sys.exit(1)
+        
+    UNIQUEID = bytearray.fromhex(UNIQUEID_HEX)
+
+if len(UNIQUEID) != HEADER_BYTELENGTHS["s_uniqid"]:
+    logger.error("UNIQUEID has wrong length")
+    sys.exit(1)
+
+logger.debug("UNIQUEID_HEX: %s" % (UNIQUEID_HEX))
+logger.debug("UNIQUEID interpreted: %s" % (":".join("{:02x}".format(ord(c)) for c in UNIQUEID_HEX)))
 
 
 def pack(header_data, message_data=""):
