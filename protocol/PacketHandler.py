@@ -9,7 +9,7 @@ from struct import pack
 import cStringIO as StringIO
 import time, logging, sys
 
-
+logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.ERROR)
 
