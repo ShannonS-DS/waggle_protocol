@@ -7,11 +7,13 @@
 from crcmod.predefined import mkCrcFun
 from struct import pack
 import cStringIO as StringIO
-import time, logging, sys
+import time, logging, sys, struct
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.ERROR)
+
+
 
 #Where each piece of information in a packet header is stored, by byte
 # Total header size is 40 bytes.
@@ -49,6 +51,15 @@ HEADER_BYTELENGTHS = {
     "crc-16"           : 2
 }
 
+
+SIZE_2_TYPE =  [ 'c' for i in range(16)]
+# '>' means big-endian
+SIZE_2_TYPE[1] = '>B' # unsigned char
+SIZE_2_TYPE[2] = '>H' # unsigned short
+SIZE_2_TYPE[4] = '>I' # unsigned int
+SIZE_2_TYPE[8] = '>q' # long long
+
+
 #The total header length
 HEADER_LENGTH = 40
 FOOTER_LENGTH = 4
@@ -62,21 +73,21 @@ VERSION = "0.3"
 SEQUENCE = 0
 
 #The /etc/waggle folder has waggle specific information
-UNIQUEID=None
+S_UNIQUEID_HEX=None
 with open('/etc/waggle/node_id','r') as file_:
-    UNIQUEID_HEX = file_.read().rstrip('\n')
-    if len(UNIQUEID_HEX) != 2*HEADER_BYTELENGTHS["s_uniqid"]:
-        logger.error("node id in /etc/waggle/node_id has wrong length (%d)" % (len(UNIQUEID_HEX)))
+    S_UNIQUEID_HEX = file_.read().rstrip('\n')
+    if len(S_UNIQUEID_HEX) != 2*HEADER_BYTELENGTHS["s_uniqid"]:
+        logger.error("node id in /etc/waggle/node_id has wrong length (%d)" % (len(S_UNIQUEID_HEX)))
         sys.exit(1)
         
-    UNIQUEID = bytearray.fromhex(UNIQUEID_HEX)
+    #UNIQUEID = bytearray.fromhex(UNIQUEID_HEX)
 
-if len(UNIQUEID) != HEADER_BYTELENGTHS["s_uniqid"]:
-    logger.error("UNIQUEID has wrong length (%d)" % (len(UNIQUEID)))
-    sys.exit(1)
+S_UNIQUEID_HEX_INT = int("0x"+ S_UNIQUEID_HEX, 0)
+S_UNIQUEID_HEX_PACKED = struct.pack(SIZE_2_TYPE[8], S_UNIQUEID_HEX_INT)
 
-logger.debug("UNIQUEID_HEX: %s" % (UNIQUEID_HEX))
-logger.debug("UNIQUEID interpreted: %s" % (":".join("{:02x}".format(ord(c)) for c in UNIQUEID_HEX)))
+
+logger.debug("S_UNIQUEID_HEX: %s" % (S_UNIQUEID_HEX))
+logger.debug("UNIQUEID interpreted: %s" % (":".join("{:02x}".format(ord(c)) for c in S_UNIQUEID_HEX)))
 
 
 def pack(header_data, message_data=""):
@@ -204,7 +215,7 @@ def pack_header(header_data):
         header += _bin_pack(header_data["msg_mj_type"], HEADER_BYTELENGTHS["msg_mj_type"])   # Message Major Type
         header += _bin_pack(header_data["msg_mi_type"], HEADER_BYTELENGTHS["msg_mi_type"])   # Message Minor Type
         header += _bin_pack(header_data["ext_header"], HEADER_BYTELENGTHS["ext_header"])     # Optional extended header
-        header += _bin_pack(header_data["s_uniqid"],HEADER_BYTELENGTHS["s_uniqid"])          # Sender unique ID
+        header += S_UNIQUEID_HEX_PACKED                                                      # Sender unique ID
         header += _bin_pack(header_data["r_uniqid"],HEADER_BYTELENGTHS["r_uniqid"])          # Recipient unique ID
         header += _bin_pack(header_data["snd_session"],HEADER_BYTELENGTHS["snd_session"])    # Send session number
         header += _bin_pack(header_data["resp_session"],HEADER_BYTELENGTHS["resp_session"])  # Response session number
@@ -354,6 +365,7 @@ def _bin_pack(n, size):
         packed[-i] = 0xff & (n >> (i - 1)*8)
 
     return str(packed)
+
 
 def _bin_unpack(string):
     """
