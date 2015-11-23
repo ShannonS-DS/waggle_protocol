@@ -86,7 +86,7 @@ if len(S_UNIQUEID_HEX) != 2*HEADER_BYTELENGTHS["s_uniqid"]:
 
 S_UNIQUEID_HEX_INT= int("0x" + S_UNIQUEID_HEX, 0)
 
-def _pack_int(value, size)
+def _pack_int(value, size):
     return struct.pack(SIZE_2_TYPE[size], value)
 
 logger.debug("S_UNIQUEID_HEX:     %s" % (S_UNIQUEID_HEX))
