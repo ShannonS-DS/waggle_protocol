@@ -94,6 +94,10 @@ logger.debug("S_UNIQUEID_HEX_INT: %s" % (S_UNIQUEID_HEX_INT))
 logger.debug("S_UNIQUEID_HEX interpreted: %s" % (":".join("{:02x}".format(ord(c)) for c in S_UNIQUEID_HEX)))
 
 
+def nodeid_int2hexstr(node_id):
+    hex(node_id)[2:].zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
+
+
 def pack(header_data, message_data=""):
     """
         Takes header and message information and yields packets representing that data.
@@ -219,7 +223,7 @@ def pack_header(header_data):
         header += _bin_pack(header_data["msg_mj_type"], HEADER_BYTELENGTHS["msg_mj_type"])   # Message Major Type
         header += _bin_pack(header_data["msg_mi_type"], HEADER_BYTELENGTHS["msg_mi_type"])   # Message Minor Type
         header += _bin_pack(header_data["ext_header"], HEADER_BYTELENGTHS["ext_header"])     # Optional extended header
-        header += _bin_pack(header_data["s_uniqid"],HEADER_BYTELENGTHS["s_uniqid"])                                                      # Sender unique ID
+        header += _bin_pack(header_data["s_uniqid"],HEADER_BYTELENGTHS["s_uniqid"])          # Sender unique ID
         header += _bin_pack(header_data["r_uniqid"],HEADER_BYTELENGTHS["r_uniqid"])          # Recipient unique ID
         header += _bin_pack(header_data["snd_session"],HEADER_BYTELENGTHS["snd_session"])    # Send session number
         header += _bin_pack(header_data["resp_session"],HEADER_BYTELENGTHS["resp_session"])  # Response session number
