@@ -8,6 +8,7 @@ from crcmod.predefined import mkCrcFun
 from struct import pack
 import cStringIO as StringIO
 import time, logging, sys, struct
+import pprint
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -204,6 +205,12 @@ def unpack(packet):
     return (header, packet[HEADER_LENGTH:-FOOTER_LENGTH])
 
 
+def print_packet(packet):
+    (header, body) = unpack(packet)
+    logger.debug("header: %s" %(pprint.pprint(header, width=1)))
+    logger.debug("body: %s\n" %(body))
+    
+    
 
 def pack_header(header_data):
     """
