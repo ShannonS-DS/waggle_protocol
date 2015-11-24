@@ -199,6 +199,7 @@ def unpack(packet):
     try:
         header = _unpack_header(packet[:HEADER_LENGTH])
     except Exception as e:
+        logger.error("_unpack_header failed: "+str(e))
         raise
 
     return (header, packet[HEADER_LENGTH:-FOOTER_LENGTH])
