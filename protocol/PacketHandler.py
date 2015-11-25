@@ -11,7 +11,7 @@ import time, logging, sys, struct
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.DEBUG)
 
 
 
@@ -95,7 +95,7 @@ logger.debug("S_UNIQUEID_HEX interpreted: %s" % (":".join("{:02x}".format(ord(c)
 
 
 def nodeid_int2hexstr(node_id):
-    hex(node_id)[2:].zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
+    return hex(node_id)[2:].zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
 
 
 def pack(header_data, message_data=""):
@@ -206,14 +206,14 @@ def unpack(packet):
 
 
 
-def print_packet(packet):
-    (header, body) = unpack(packet)
-
-    for key,value in header.items():
-        logger.debug("%s: %d", (key, value))
-        
-    logger.debug("body: %s\n" %(body))
-    
+#def print_packet(packet):
+#    (header, body) = unpack(packet)
+#
+#    for key,value in header.items():
+#        logger.debug("%s: %d", (key, value))
+#        
+#    logger.debug("body: %s\n" %(body))
+#    
     
 
 def pack_header(header_data):
