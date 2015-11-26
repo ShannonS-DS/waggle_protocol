@@ -95,8 +95,8 @@ logger.debug("S_UNIQUEID_HEX interpreted: %s" % (":".join("{:02x}".format(ord(c)
 
 
 def nodeid_int2hexstr(node_id):
-    return hex(node_id)[2:].zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
-
+    #return hex(node_id)[2:].zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
+    return "%0s"%format(node_id,'x').lower().zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
 
 def pack(header_data, message_data=""):
     """
