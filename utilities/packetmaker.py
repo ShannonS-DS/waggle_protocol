@@ -6,7 +6,7 @@
 from gPickler import gPickle
 import sys, os, os.path
 sys.path.append("..")
-from waggle-protocol.protocol.PacketHandler import *
+from waggle_protocol.protocol.PacketHandler import *
 
 
 def make_ping_packet():
