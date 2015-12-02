@@ -8,7 +8,7 @@
 
 import sys
 sys.path.append("..")
-from protocol.PacketHandler import *
+from waggle-protocol.protocol.PacketHandler import *
 from cStringIO import StringIO
 from collections import deque
 
