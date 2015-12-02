@@ -87,7 +87,7 @@ if os.path.isfile('/etc/waggle/node_id'):
     logger.debug("S_UNIQUEID_HEX:     %s" % (S_UNIQUEID_HEX))
     logger.debug("S_UNIQUEID_HEX_INT: %s" % (S_UNIQUEID_HEX_INT))
     logger.debug("S_UNIQUEID_HEX interpreted: %s" % (":".join("{:02x}".format(ord(c)) for c in S_UNIQUEID_HEX)))
-else
+else:
     logger.debug("file /etc/waggle/node_id not found")
     
     
