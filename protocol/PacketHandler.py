@@ -74,24 +74,25 @@ SEQUENCE = 0
 
 #The /etc/waggle folder has waggle specific information
 S_UNIQUEID_HEX=None
-with open('/etc/waggle/node_id','r') as file_:
-    S_UNIQUEID_HEX = file_.read().rstrip('\n')
+if os.path.isfile('/etc/waggle/node_id'):
+    with open('/etc/waggle/node_id','r') as file_:
+        S_UNIQUEID_HEX = file_.read().rstrip('\n')
+    
+    if len(S_UNIQUEID_HEX) != 2*HEADER_BYTELENGTHS["s_uniqid"]:
+        logger.error("node id in /etc/waggle/node_id has wrong length (%d)" % (len(S_UNIQUEID_HEX)))
+        sys.exit(1)
+    
+    S_UNIQUEID_HEX_INT= int("0x" + S_UNIQUEID_HEX, 0)
+
+    logger.debug("S_UNIQUEID_HEX:     %s" % (S_UNIQUEID_HEX))
+    logger.debug("S_UNIQUEID_HEX_INT: %s" % (S_UNIQUEID_HEX_INT))
+    logger.debug("S_UNIQUEID_HEX interpreted: %s" % (":".join("{:02x}".format(ord(c)) for c in S_UNIQUEID_HEX)))
+else
+    logger.debug("file /etc/waggle/node_id not found")
     
     
-if len(S_UNIQUEID_HEX) != 2*HEADER_BYTELENGTHS["s_uniqid"]:
-    logger.error("node id in /etc/waggle/node_id has wrong length (%d)" % (len(S_UNIQUEID_HEX)))
-    sys.exit(1)
-    
-
-
-S_UNIQUEID_HEX_INT= int("0x" + S_UNIQUEID_HEX, 0)
-
 def _pack_int(value, size):
     return struct.pack(SIZE_2_TYPE[size], value)
-
-logger.debug("S_UNIQUEID_HEX:     %s" % (S_UNIQUEID_HEX))
-logger.debug("S_UNIQUEID_HEX_INT: %s" % (S_UNIQUEID_HEX_INT))
-logger.debug("S_UNIQUEID_HEX interpreted: %s" % (":".join("{:02x}".format(ord(c)) for c in S_UNIQUEID_HEX)))
 
 
 def nodeid_int2hexstr(node_id):
