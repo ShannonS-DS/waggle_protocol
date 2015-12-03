@@ -75,6 +75,7 @@ SEQUENCE = 0
 
 #The /etc/waggle folder has waggle specific information
 S_UNIQUEID_HEX=None
+
 if os.path.isfile('/etc/waggle/node_id'):
     with open('/etc/waggle/node_id','r') as file_:
         S_UNIQUEID_HEX = file_.read().rstrip('\n')
@@ -90,7 +91,7 @@ if os.path.isfile('/etc/waggle/node_id'):
     logger.debug("S_UNIQUEID_HEX interpreted: %s" % (":".join("{:02x}".format(ord(c)) for c in S_UNIQUEID_HEX)))
 else:
     logger.debug("file /etc/waggle/node_id not found")
-    
+    S_UNIQUEID_HEX_INT = 0
     
 def _pack_int(value, size):
     return struct.pack(SIZE_2_TYPE[size], value)
