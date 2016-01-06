@@ -142,6 +142,8 @@ def pack(header_data, message_data=""):
     #Jump to the end of the file
     message_data.seek(0,2)
 
+    header = None
+    
     #See if it is less than 1K
     if(message_data.tell() < MAX_PACKET_SIZE):
         try:
@@ -197,6 +199,7 @@ def unpack(packet):
         :raises KeyError: An IndexError will be raised if a packet header is the wrong length
     """
     crc32fun = mkCrcFun('crc-32')
+    header = None
     if(crc32fun(packet[HEADER_LENGTH:-FOOTER_LENGTH]) != _bin_unpack(packet[-FOOTER_LENGTH:])):
         raise IOError("Packet body CRC-32 failed.")
     try:
