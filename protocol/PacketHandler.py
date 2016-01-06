@@ -292,7 +292,7 @@ def _unpack_header(packed_header):
 
     # Check header length
     if len(packed_header) != HEADER_LENGTH:
-        raise IndexError("Tried to unpack a waggle header that was not 40 bytes long.")
+        raise IndexError("Tried to unpack a waggle header that was %d instead of %d bytes long." % (len(packed_header), HEADER_LENGTH ) )
 
     header_IO = StringIO.StringIO(packed_header)
 
