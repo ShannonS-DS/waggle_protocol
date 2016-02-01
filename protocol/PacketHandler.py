@@ -252,7 +252,7 @@ def pack_header(header_data):
 
     #Compute the header CRC and stick it on the end
     crc16 = mkCrcFun('crc-16')
-    header += _bin_pack(crc16(header),2)
+    header += _bin_pack(crc16(header),HEADER_BYTELENGTHS['crc-16'])
 
     return header
 
