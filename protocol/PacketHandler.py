@@ -76,6 +76,9 @@ SEQUENCE = 0
 #The /etc/waggle folder has waggle specific information
 S_UNIQUEID_HEX=None
 
+def nodeid_hexstr2int(node_id_hex):
+    return int("0x" + node_id_hex, 0)
+ 
 if os.path.isfile('/etc/waggle/node_id'):
     with open('/etc/waggle/node_id','r') as file_:
         S_UNIQUEID_HEX = file_.read().rstrip('\n')
@@ -84,7 +87,7 @@ if os.path.isfile('/etc/waggle/node_id'):
         logger.error("node id in /etc/waggle/node_id has wrong length (%d)" % (len(S_UNIQUEID_HEX)))
         sys.exit(1)
     
-    S_UNIQUEID_HEX_INT= int("0x" + S_UNIQUEID_HEX, 0)
+    S_UNIQUEID_HEX_INT= nodeid_hexstr2int(S_UNIQUEID_HEX)
 
     logger.debug("S_UNIQUEID_HEX:     %s" % (S_UNIQUEID_HEX))
     logger.debug("S_UNIQUEID_HEX_INT: %s" % (S_UNIQUEID_HEX_INT))
@@ -222,6 +225,7 @@ def unpack(packet):
 #    
     
 
+
 def pack_header(header_data):
     """
         Attempt to pack the data from the header_data dictionary into binary format according to Waggle protocol.
@@ -271,6 +275,48 @@ def get_header(packet):
         return header
     except Exception as e:
         raise
+
+
+"""
+    (bytearray header) Sets header field in an bytearray. Value also has to be an bytearray.
+"""
+def set_header_field(header_ba, field, value):
+    try:
+        field_position = HEADER_LOCATIONS[field]
+        field_length = HEADER_BYTELENGTHS[field]
+    except Exception as e:
+        logger.error("Field name unknown: %s" % (str(e)) )
+        raise
+    
+    if len(value) != field_length:
+        e = ValueError("data length: %d bytes, but field is of size: %d bytes (field: %s)" % (len(value), field_length, field) )
+        logger.error(str(e))
+        raise e
+    
+    if (len(header_ba) != HEADER_LENGTH):
+        e = ValueError("header length is not correct: %d vs HEADER_LENGTH=%d" %(len(header_ba), HEADER_LENGTH) )
+        logger.error(str(e))
+        raise e
+        
+    for i in range(field_position):
+        header_ba[field_position+i] = value[i]
+    
+    
+
+"""
+    (bytearray header) Calculates the header crc and accordingly sets the crc-16 field.
+"""
+def write_header_crc(header_ba):
+    
+    #TODO: make crc16 a global function
+    crc16 = mkCrcFun('crc-16')
+    
+    new_crc = crc16(str(header_bytearray[:crc16_position]))
+    
+    new_crc_packed = _bin_pack(new_crc,HEADER_BYTELENGTHS['crc-16'])
+
+    set_header_field(header_bytearray, 'crc-16', new_crc_packed)
+
 
 
 """
