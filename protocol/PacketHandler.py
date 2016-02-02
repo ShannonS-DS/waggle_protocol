@@ -76,6 +76,11 @@ SEQUENCE = 0
 #The /etc/waggle folder has waggle specific information
 S_UNIQUEID_HEX=None
 
+
+#Create the CRC functions
+crc32fun = mkCrcFun('crc-32')
+crc16fun = mkCrcFun('crc-16')
+
 def nodeid_hexstr2int(node_id_hex):
     return int("0x" + node_id_hex, 0)
  
@@ -134,8 +139,6 @@ def pack(header_data, message_data=""):
     #and update them with user-supplied values
     auto_header.update(header_data)
 
-    #Create the CRC function
-    crc32fun = mkCrcFun('crc-32')
 
     #If it's a string, make it a file object
     if(type(message_data) is str):
@@ -161,7 +164,7 @@ def pack(header_data, message_data=""):
 
         #Calculate the CRC, pack it all up, and return the result.
         SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
-        msg_crc32 = _bin_pack(crc32fun(msg),FOOTER_LENGTH)
+        msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
 
         yield header + msg + msg_crc32
 
@@ -177,19 +180,19 @@ def pack(header_data, message_data=""):
                 header = pack_header(auto_header)
             except KeyError as e:
                 raise
-            msg = _bin_pack(packetNum,4) + message_data.read(MAX_PACKET_SIZE)
+            msg = bin_pack(packetNum,4) + message_data.read(MAX_PACKET_SIZE)
             SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
             packetNum += 1
-            msg_crc32 = _bin_pack(crc32fun(msg),FOOTER_LENGTH)
+            msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
             yield header + msg + msg_crc32
             length -= MAX_PACKET_SIZE
 
         # Finish sending the message
         if length > 0:
             header = pack_header(auto_header)
-            msg = _bin_pack(packetNum,4) + message_data.read(MAX_PACKET_SIZE)
+            msg = bin_pack(packetNum,4) + message_data.read(MAX_PACKET_SIZE)
             SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
-            msg_crc32 = _bin_pack(crc32fun(msg),FOOTER_LENGTH)
+            msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
             yield header + msg + msg_crc32
 
 def unpack(packet):
@@ -201,7 +204,7 @@ def unpack(packet):
         :raises IOError: An IOError will be raised if a CRC fails in the packet
         :raises KeyError: An IndexError will be raised if a packet header is the wrong length
     """
-    crc32fun = mkCrcFun('crc-32')
+    #crc32fun = mkCrcFun('crc-32')
     header = None
     if(crc32fun(packet[HEADER_LENGTH:-FOOTER_LENGTH]) != _bin_unpack(packet[-FOOTER_LENGTH:])):
         raise IOError("Packet body CRC-32 failed.")
@@ -239,24 +242,24 @@ def pack_header(header_data):
     try:
         header += _pack_version(header_data["prot_ver"])                                                   # Serialize protocol version
         header += _pack_flags(header_data["flags"])                                                        # Packet flags
-        header += _bin_pack(header_data["len_body"],HEADER_BYTELENGTHS["len_body"])          # Length of message body
-        header += _bin_pack(header_data["time"],HEADER_BYTELENGTHS["time"])                  # Timestamp
-        header += _bin_pack(header_data["msg_mj_type"], HEADER_BYTELENGTHS["msg_mj_type"])   # Message Major Type
-        header += _bin_pack(header_data["msg_mi_type"], HEADER_BYTELENGTHS["msg_mi_type"])   # Message Minor Type
-        header += _bin_pack(header_data["ext_header"], HEADER_BYTELENGTHS["ext_header"])     # Optional extended header
-        header += _bin_pack(header_data["s_uniqid"],HEADER_BYTELENGTHS["s_uniqid"])          # Sender unique ID
-        header += _bin_pack(header_data["r_uniqid"],HEADER_BYTELENGTHS["r_uniqid"])          # Recipient unique ID
-        header += _bin_pack(header_data["snd_session"],HEADER_BYTELENGTHS["snd_session"])    # Send session number
-        header += _bin_pack(header_data["resp_session"],HEADER_BYTELENGTHS["resp_session"])  # Response session number
-        header += _bin_pack(header_data["snd_seq"],HEADER_BYTELENGTHS["snd_seq"])            # Send sequence number
-        header += _bin_pack(header_data["resp_seq"],HEADER_BYTELENGTHS["resp_seq"])          # Response sequence number
+        header += bin_pack(header_data["len_body"],HEADER_BYTELENGTHS["len_body"])          # Length of message body
+        header += bin_pack(header_data["time"],HEADER_BYTELENGTHS["time"])                  # Timestamp
+        header += bin_pack(header_data["msg_mj_type"], HEADER_BYTELENGTHS["msg_mj_type"])   # Message Major Type
+        header += bin_pack(header_data["msg_mi_type"], HEADER_BYTELENGTHS["msg_mi_type"])   # Message Minor Type
+        header += bin_pack(header_data["ext_header"], HEADER_BYTELENGTHS["ext_header"])     # Optional extended header
+        header += bin_pack(header_data["s_uniqid"],HEADER_BYTELENGTHS["s_uniqid"])          # Sender unique ID
+        header += bin_pack(header_data["r_uniqid"],HEADER_BYTELENGTHS["r_uniqid"])          # Recipient unique ID
+        header += bin_pack(header_data["snd_session"],HEADER_BYTELENGTHS["snd_session"])    # Send session number
+        header += bin_pack(header_data["resp_session"],HEADER_BYTELENGTHS["resp_session"])  # Response session number
+        header += bin_pack(header_data["snd_seq"],HEADER_BYTELENGTHS["snd_seq"])            # Send sequence number
+        header += bin_pack(header_data["resp_seq"],HEADER_BYTELENGTHS["resp_seq"])          # Response sequence number
     except KeyError as e:
         raise KeyError("Header packing failed. The required dictionary entry %s was missing!" % str(e))
 
 
     #Compute the header CRC and stick it on the end
-    crc16 = mkCrcFun('crc-16')
-    header += _bin_pack(crc16(header),HEADER_BYTELENGTHS['crc-16'])
+    #crc16 = mkCrcFun('crc-16')
+    header += bin_pack(crc16fun(header),HEADER_BYTELENGTHS['crc-16'])
 
     return header
 
@@ -307,17 +310,33 @@ def set_header_field(header_ba, field, value):
     (bytearray header) Calculates the header crc and accordingly sets the crc-16 field.
 """
 def write_header_crc(header_ba):
+     
+    new_crc = crc16fun(str(header_bytearray[:crc16_position]))
     
-    #TODO: make crc16 a global function
-    crc16 = mkCrcFun('crc-16')
-    
-    new_crc = crc16(str(header_bytearray[:crc16_position]))
-    
-    new_crc_packed = _bin_pack(new_crc,HEADER_BYTELENGTHS['crc-16'])
+    new_crc_packed = bin_pack(new_crc,HEADER_BYTELENGTHS['crc-16'])
 
     set_header_field(header_bytearray, 'crc-16', new_crc_packed)
 
 
+
+def bin_pack(n, size):
+    """
+        Takes in an int n and returns it in binary string format of a specified length
+
+        :param int n: The integer to be converted to binary
+        :param int size: The number of bytes that the integer will be represented with
+        :rtype: string
+    """
+    packed = bytearray(size)
+
+    for i in range(1, size + 1):
+        packed[-i] = 0xff & (n >> (i - 1)*8)
+
+    return str(packed)
+    
+    
+    
+    
 
 """
 -------------------------------------------------------------------------------------------------------------------
@@ -343,10 +362,10 @@ def _unpack_header(packed_header):
     header_IO = StringIO.StringIO(packed_header)
 
     #Check the CRC
-    CRC16 = mkCrcFun('CRC-16')
+    #CRC16 = mkCrcFun('CRC-16')
     header_IO.seek(HEADER_LOCATIONS["crc-16"])
     headerCRC = header_IO.read(2)
-    if(CRC16(packed_header[:-2]) != _bin_unpack(headerCRC)):
+    if(crc16fun(packed_header[:-2]) != _bin_unpack(headerCRC)):
         raise IOError("Header CRC-16 check failed")
     header_IO.seek(0)
 
@@ -421,21 +440,7 @@ def _pack_version(version):
 
     return chr((major << 4) | (0xf & minor))
 
-def _bin_pack(n, size):
-    """
-        For internal use.
-        Takes in an int n and returns it in binary string format of a specified length
 
-        :param int n: The integer to be converted to binary
-        :param int size: The number of bytes that the integer will be represented with
-        :rtype: string
-    """
-    packed = bytearray(size)
-
-    for i in range(1, size + 1):
-        packed[-i] = 0xff & (n >> (i - 1)*8)
-
-    return str(packed)
 
 
 def _bin_unpack(string):
