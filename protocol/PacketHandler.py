@@ -283,7 +283,7 @@ def get_header(packet):
 """
     (bytearray header) Sets header field in an bytearray. Value also has to be an bytearray.
 """
-def set_header_field(header_ba, field, value):
+def set_header_field(header_bytearray, field, value):
     try:
         field_position = HEADER_LOCATIONS[field]
         field_length = HEADER_BYTELENGTHS[field]
@@ -296,20 +296,20 @@ def set_header_field(header_ba, field, value):
         logger.error(str(e))
         raise e
     
-    if (len(header_ba) != HEADER_LENGTH):
-        e = ValueError("header length is not correct: %d vs HEADER_LENGTH=%d" %(len(header_ba), HEADER_LENGTH) )
+    if (len(header_bytearray) != HEADER_LENGTH):
+        e = ValueError("header length is not correct: %d vs HEADER_LENGTH=%d" %(len(header_bytearray), HEADER_LENGTH) )
         logger.error(str(e))
         raise e
         
     for i in range(field_length):
-        header_ba[field_position+i] = value[i]
+        header_bytearray[field_position+i] = value[i]
     
     
 
 """
     (bytearray header) Calculates the header crc and accordingly sets the crc-16 field.
 """
-def write_header_crc(header_ba):
+def write_header_crc(header_bytearray):
      
     new_crc = crc16fun(str(header_bytearray[:crc16_position]))
     
