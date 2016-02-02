@@ -81,6 +81,8 @@ S_UNIQUEID_HEX=None
 crc32fun = mkCrcFun('crc-32')
 crc16fun = mkCrcFun('crc-16')
 
+crc16_position = HEADER_LOCATIONS['crc-16']
+
 def nodeid_hexstr2int(node_id_hex):
     return int("0x" + node_id_hex, 0)
  
