@@ -67,7 +67,9 @@ class Mysql(object):
             return cur.fetchone()
         
         
-
+    def get_node(self, node_id):
+        return self.query_one("SELECT * FROM nodes WHERE node_id='{0}'".format(node_id))
+        
 
     def find_port(self, node_id):
         row = self.query_one("SELECT reverse_ssh_port FROM nodes WHERE node_id='{0}'".format(node_id))
@@ -85,10 +87,49 @@ class Mysql(object):
             return port
         return None
 
-
-    def createNewNode(self, node_id, description, port):
-    #0000001e06200335
-        self.query_one("INSERT INTO nodes (node_id, description, reverse_ssh_port) VALUES ('%s', '%s', %d)" % ( node_id, description, port ))
+    def find_unused_port(self):
+        # first try port = 10000
+        # once port 10000 is used, find_unused_port_query can find the next unsued port number above 10000
+        row = self.query_one('SELECT * FROM nodes WHERE reverse_ssh_port = 10000;')
         
+        if row :
+    
+            # this query expects that at least one 
+            find_unused_port_query = """SELECT t1.reverse_ssh_port+1 AS Missing
+            FROM nodes AS t1
+            LEFT JOIN nodes AS t2 ON t1.reverse_ssh_port+1 = t2.reverse_ssh_port
+            WHERE t2.reverse_ssh_port IS NULL
+            ORDER BY t1.reverse_ssh_port LIMIT 1;"""
+        
+            newport = self.query_one(find_unused_port_query)
+        
+            try:
+                newport = int(newport)
+            except:
+                logger.error("Could not convert new port into int: %s" % (newport))
+                return None
+            
+            if newport < 10000 or newport > 60000:
+                logger.error("Port number %d out of range." % (newport) )
+                return None
+        else:
+            # This most likely means that the nodes table is still empty
+            newport = 10000
+            
+            
+        return newport 
+        
+        
+    def createNewNode(self, node_id):
+    #0000001e06200335
+    
+        newport = self.find_unused_port()
+        
+        if not newport:
+            return None
+    
+        self.query_one("INSERT INTO nodes (node_id, reverse_ssh_port) VALUES ('%s', %d)" % ( node_id, newport ))
+        
+        return newport
         
         
