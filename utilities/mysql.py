@@ -64,7 +64,9 @@ class Mysql(object):
         """
         
         with self.get_cursor(query) as cur:
-            return cur.fetchone()
+            result = cur.fetchone()
+            logger.debug("query_one result: (type: %s) %s" % (str(type(result)), str(result)))
+            return result
         
         
     def get_node(self, node_id):
@@ -103,10 +105,14 @@ class Mysql(object):
         
             newport = self.query_one(find_unused_port_query)
         
+            if not newport:
+                logger.debug("newport empty")
+                return newport 
+                
             try:
                 newport = int(newport)
-            except:
-                logger.error("Could not convert new port into int: %s" % (newport))
+            except Exception as e:
+                logger.error("Could not convert new port into int: %s %s %s" % (newport,str(type(e)),str(e)))
                 return None
             
             if newport < 10000 or newport > 60000:
