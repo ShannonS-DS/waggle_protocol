@@ -64,8 +64,12 @@ class Mysql(object):
         """
         
         with self.get_cursor(query) as cur:
-            result = cur.fetchone()[0]
-            logger.debug("query_one result: (type: %s) %s" % (str(type(result)), str(result)))
+            result_array = cur.fetchone()
+            result = None
+            if result_array:
+                # extract first element from result array
+                logger.debug("query_one result: (type: %s) %s" % (str(type(result_array)), str(result_array)))
+                result = result_array[0]
             return result
         
         
