@@ -3,7 +3,7 @@ import MySQLdb
 from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)
 
 
 class Mysql(object):
@@ -116,7 +116,7 @@ class Mysql(object):
             # This most likely means that the nodes table is still empty
             newport = 10000
             
-            
+        logger.debug("newport: %s" % (str(newport)))    
         return newport 
         
         
