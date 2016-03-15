@@ -60,17 +60,11 @@ class Mysql(object):
 
     def query_one(self, query):
         """
-        MySQL query that returns a single result
+        MySQL query that returns a single row (array)
         """
         
         with self.get_cursor(query) as cur:
-            result_array = cur.fetchone()
-            result = None
-            if result_array:
-                # extract first element from result array
-                logger.debug("query_one result: (type: %s) %s" % (str(type(result_array)), str(result_array)))
-                result = result_array[0]
-            return result
+            return cur.fetchone()
         
         
     def get_node(self, node_id):
@@ -81,12 +75,18 @@ class Mysql(object):
         row = self.query_one("SELECT reverse_ssh_port FROM nodes WHERE node_id='{0}'".format(node_id))
         
         if not row:
+            logger.debug("row for %s not found" % (node_id))
             return None
         
+        
+        if not row[0]:
+            logger.debug("row for %s does not contain port numebr" % (node_id))
+            return None
+            
         try:
             port = int(row[0])
         except ValueError:
-            logger.error("Could not parse port number %s" % (port)) 
+            logger.error("port number %s for node %s cannot be converted" % (port, node_id)) 
             port = None  
     
         
