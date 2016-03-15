@@ -2,8 +2,10 @@ import logging
 import MySQLdb
 from contextlib import contextmanager
 
+loglevel = logging.DEBUG
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(loglevel)
+
 
 
 class Mysql(object):
@@ -126,6 +128,7 @@ class Mysql(object):
         newport = self.find_unused_port()
         
         if not newport:
+            logger.error("createNewNode() did not get a port from find_unused_port()")
             return None
     
         self.query_one("INSERT INTO nodes (node_id, reverse_ssh_port) VALUES ('%s', %d)" % ( node_id, newport ))
