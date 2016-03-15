@@ -2,10 +2,8 @@ import logging
 import MySQLdb
 from contextlib import contextmanager
 
-loglevel = logging.DEBUG
+logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(loglevel)
-
 
 
 class Mysql(object):
