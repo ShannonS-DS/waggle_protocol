@@ -6,6 +6,8 @@
 import fcntl
 import os
 import os.path
+import subprocess
+import time
 
 class PidFile(object):
     """Context manager that locks a pid file.  Implemented as class
@@ -13,12 +15,25 @@ class PidFile(object):
     instead of the None, None, None specified by PEP-343."""
     # pylint: disable=R0903
 
-    def __init__(self, path):
+    def __init__(self, path, force=0, name=''):
         self.path = path
         self.pidfile = None
+        self.force = force
+        self.name = name
 
     def __enter__(self):
         
+        if self.force:
+            try:
+                subprocess.call('kill -9 $(ps -o pid,command -C python | grep {0} | grep -oPi "^\ *\d+" | grep -oPi "\d+" | tr "\n" " " )'.format(self.name), shell=True)
+            except:
+                pass
+            time.sleep(3)
+            try:
+                os.remove(self.pidfile)
+            except:
+                pass  
+                
         directory = os.path.dirname(self.path)
         
         if not os.path.exists(directory):
@@ -28,7 +43,9 @@ class PidFile(object):
         try:
             fcntl.flock(self.pidfile.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except IOError:
-            raise AlreadyRunning("Already running according to " + self.path)
+                raise AlreadyRunning("Already running according to " + self.path)
+                
+                
         self.pidfile.seek(0)
         self.pidfile.truncate()
         self.pidfile.write(str(os.getpid()))
