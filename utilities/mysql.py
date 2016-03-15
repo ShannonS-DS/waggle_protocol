@@ -64,7 +64,7 @@ class Mysql(object):
         """
         
         with self.get_cursor(query) as cur:
-            result = cur.fetchone()
+            result = cur.fetchone()[0]
             logger.debug("query_one result: (type: %s) %s" % (str(type(result)), str(result)))
             return result
         
