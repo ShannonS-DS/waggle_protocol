@@ -38,8 +38,40 @@ class PidFile(object):
 
     def get_process_group(self, pid):
         
-        # ps -o pgid --no-headers  30328
+        gpid_str = None
+        ps_command = ['ps', '-o pgid', '--no-headers', str(pid)]
+        logger.debug(' '.join(ps_command))
+        try:
+            gpid_str = subprocess.Popen(ps_command, stdout=subprocess.PIPE).communicate()[0]
+        except Exception as e:
+            logger.warning("Could not get process group id: (%s) %s" % (str(type(e)),str(e)) )
+            return None
+            
+        try:
+            gpid_int = int(gpid_str)
+        except Exception as e:
+            logger.warning("Could not convert process group id: (%s) %s" % (str(type(e)),str(e)) )
+            return None
+          
+        if gpid_int <= 1:
+            logger.warning("gpid_int <= 1 : %d" % (gpid_int))
+            return None
         
+        return gpid_int
+        
+
+    def kill_process_group(self, pgid):
+        
+        kill_command = ['kill','-TERM', '-'+str(pgid)]
+        logger.debug(' '.join(kill_command))
+        try:
+            subprocess.call(kill_command, shell=False)
+        except Exception as e:
+            logger.warning("Kill failed: (%s) %s" % (str(type(e)),str(e)) )
+            return 0
+            
+        return 1
+    
 
     def __enter__(self):
         
@@ -55,33 +87,15 @@ class PidFile(object):
             if not other_pid:
                 break;
             
-                
-            gpid_str = None
-            ps_command = ['ps', '-o pgid', '--no-headers', other_pid]
-            logger.debug(' '.join(ps_command))
-            try:
-                gpid_str = subprocess.Popen(ps_command, stdout=subprocess.PIPE).communicate()[0]
-            except Exception as e:
-                logger.warning("Could not get process group id: (%s) %s" % (str(type(e)),str(e)) )
+            pgid_int = self.get_process_group(other_pid)
+            if not pgid_int:
                 break
             
-            try:
-                gpid_int = int(gpid_str)
-            except Exception as e:
-                logger.warning("Could not convert process group id: (%s) %s" % (str(type(e)),str(e)) )
-                break
-              
-            if gpid_int <= 1:
-                logger.warning("gpid_int <= 1 : %d" % (gpid_int))
+            
+            if not self.kill_process_group(pgid_int):
                 break
             
-            kill_command = ['kill','-TERM', '-'+str(gpid_int)]
-            logger.debug(' '.join(kill_command))
-            try:
-                subprocess.call(kill_command, shell=False)
-            except Exception as e:
-                logger.warning("Kill failed: (%s) %s" % (str(type(e)),str(e)) )
-                break
+            
             time.sleep(3)
             try:
                 os.remove(self.pidfile)
