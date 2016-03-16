@@ -39,7 +39,7 @@ class PidFile(object):
     def get_process_group(self, pid):
         
         gpid_str = None
-        ps_command = ['ps', '-o pgid', '--no-headers', str(pid)]
+        ps_command = ['ps', '-o','pgid', '--no-headers', str(pid)]
         logger.debug(' '.join(ps_command))
         try:
             gpid_str = subprocess.Popen(ps_command, stdout=subprocess.PIPE).communicate()[0]
