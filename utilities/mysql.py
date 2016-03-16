@@ -80,7 +80,7 @@ class Mysql(object):
         
         
         if not row[0]:
-            logger.debug("row for %s does not contain port numebr" % (node_id))
+            logger.debug("row for %s does not contain port number" % (node_id))
             return None
             
         try:
