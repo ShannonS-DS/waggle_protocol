@@ -8,6 +8,20 @@ import os
 import os.path
 import subprocess
 import time
+import logging
+
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+
+
+def read_file( str ):
+    print "read_file: "+str
+    if not os.path.isfile(str) :
+        return ""
+    with open(str,'r') as file_:
+        return file_.read().strip()
+    return ""
+    
 
 class PidFile(object):
     """Context manager that locks a pid file.  Implemented as class
@@ -21,18 +35,60 @@ class PidFile(object):
         self.force = force
         self.name = name
 
+
+    def get_process_group(self, pid):
+        
+        # ps -o pgid --no-headers  30328
+        
+
     def __enter__(self):
         
-        if self.force:
+        # this is not a real loop, I just want to be able to break out
+        while self.force:
+            """
+            This will try to kill an existing process group.
+            """
+            other_pid = read_file(self.path)
+            
+            # get process group id
+            
+            if not other_pid:
+                break;
+            
+                
+            gpid_str = None
+            ps_command = ['ps', '-o pgid', '--no-headers', other_pid]
+            logger.debug(' '.join(ps_command))
             try:
-                subprocess.call('kill -9 $(ps -o pid,command -C python | grep {0} | grep -oPi "^\ *\d+" | grep -oPi "\d+" | tr "\n" " " )'.format(self.name), shell=True)
-            except:
-                pass
+                gpid_str = subprocess.Popen(ps_command, stdout=subprocess.PIPE).communicate()[0]
+            except Exception as e:
+                logger.warning("Could not get process group id: (%s) %s" % (str(type(e)),str(e)) )
+                break
+            
+            try:
+                gpid_int = int(gpid_str)
+            except Exception as e:
+                logger.warning("Could not convert process group id: (%s) %s" % (str(type(e)),str(e)) )
+                break
+              
+            if gpid_int <= 1:
+                logger.warning("gpid_int <= 1 : %d" % (gpid_int))
+                break
+            
+            kill_command = ['kill','-TERM', '-'+str(gpid_int)]
+            logger.debug(' '.join(kill_command))
+            try:
+                subprocess.call(kill_command, shell=False)
+            except Exception as e:
+                logger.warning("Kill failed: (%s) %s" % (str(type(e)),str(e)) )
+                break
             time.sleep(3)
             try:
                 os.remove(self.pidfile)
             except:
-                pass  
+                pass
+            
+            break  
                 
         directory = os.path.dirname(self.path)
         
