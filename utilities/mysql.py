@@ -114,7 +114,7 @@ class Mysql(object):
                 return newport 
                 
             try:
-                newport = int(newport)
+                newport = int(newport[0])
             except Exception as e:
                 logger.error("Could not convert new port into int: %s %s %s" % (newport,str(type(e)),str(e)))
                 return None
