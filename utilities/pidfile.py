@@ -46,6 +46,11 @@ class PidFile(object):
         except Exception as e:
             logger.warning("Could not get process group id: (%s) %s" % (str(type(e)),str(e)) )
             return None
+        
+        if not gpid_str:
+            logger.warning("GPID for PID %s not found" % (str(pid)))
+            return None
+        
             
         try:
             gpid_int = int(gpid_str)
