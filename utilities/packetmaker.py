@@ -12,12 +12,13 @@ sys.path.append("../..")
 from waggle_protocol.protocol.PacketHandler import *
 
 # Dictionary of supported fuctions
-func_dict = {('p', 'r'): (make_ping_packet, ('s_puid', 'r_puid')),
-             ('t', 'r'): (make_time_packet, ('s_puid', 'r_puid')),
-             ('s', 'd'): (make_data_packet, ('data', 'sender', 'recipient')),
-             ('r', 'r'): (registration_packet, ('meta')),
-             ('r', 'n'): (make_config_reg, ('meta')),
-             ('r', 'd'): (deregistration_packet, ('rec'))}
+# Mj/Mi types mapped to name of the function, mandatory args, and optional args
+func_dict = {('p', 'r'): (make_ping_packet, (), ('s_puid', 'r_puid')),
+             ('t', 'r'): (make_time_packet, (), ('s_puid', 'r_puid')),
+             ('s', 'd'): (make_data_packet, ('data') ('s_puid', 'r_puid')),
+             ('r', 'r'): (registration_packet, ('meta'), ()),
+             ('r', 'n'): (make_config_reg, ('meta'), ()),
+             ('r', 'd'): (deregistration_packet, ('s_puid', 'r_puid'), ())}
 
 def make_ping_packet(s_puid="", r_puid=""):
     """
@@ -60,7 +61,7 @@ def make_data_packet(data, s_puid="", r_puid=""):
         "msg_mj_type" : ord('s'),
         "msg_mi_type" : ord('d')
         }
-    return pack(header_dict, message_data = msg, s_puid=s_puid, r_puid=r_puid)
+    return pack(header_dict, message_data = msg)
 
 def registration_packet(meta):
     """
