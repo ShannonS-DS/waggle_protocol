@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 # packetmaker.py
 """
     This module contains a few utilities that autogenerate complete simple packets,
@@ -9,46 +11,58 @@ sys.path.append("..")
 sys.path.append("../..")
 from waggle_protocol.protocol.PacketHandler import *
 
+# Dictionary of supported fuctions
+func_dict = {('p', 'r'): (make_ping_packet, ('s_puid', 'r_puid')),
+             ('t', 'r'): (make_time_packet, ('s_puid', 'r_puid')),
+             ('s', 'd'): (make_data_packet, ('data', 'sender', 'recipient')),
+             ('r', 'r'): (registration_packet, ('meta')),
+             ('r', 'n'): (make_config_reg, ('meta')),
+             ('r', 'd'): (deregistration_packet, ('rec'))}
 
-def make_ping_packet():
+def make_ping_packet(s_puid="", r_puid=""):
     """
         Returns a simple ping request packet.
-
+        
+        :param sender: hex string puid of the sender
+        :param recipient: hex string puid of the recipient
         :rtype: string
     """
     header_dict = {
         "msg_mj_type" : ord('p'),
         "msg_mi_type" : ord('r')
     }
-    return pack(header_dict)
+    return pack(header_dict, s_puid=s_puid, r_puid=r_puid)
 
-def make_time_packet():
+def make_time_packet(s_puid="", r_puid=""):
     """
         Returns a simple time request packet.
 
+        :param sender: hex string puid of the sender
+        :param recipient: hex string puid of the recipient
         :rtype: string
     """
     header_dict = {
         "msg_mj_type" : ord('t'),
         "msg_mi_type" : ord('r')
     }
-    return pack(header_dict)
+    return pack(header_dict, s_puid=s_puid, r_puid=r_puid)
 
-def make_data_packet(data):
+def make_data_packet(data, s_puid="", r_puid=""):
     """
     Compresses sensor data and returns a sensor data packet. 
 
-    :param data: sensor data 
+    :param args: data, puid (optional)
     :rtype: string 
     """ 
-    msg = gPickle(data)
+    msg = gPickle(args['data'])
+
     header_dict = {
         "msg_mj_type" : ord('s'),
         "msg_mi_type" : ord('d')
         }
-    return pack(header_dict, message_data = msg)
+    return pack(header_dict, message_data = msg, s_puid=s_puid, r_puid=r_puid)
 
-def registration_packet(queuename):
+def registration_packet(meta):
     """
         Returns a registration request packet.
 
@@ -59,7 +73,7 @@ def registration_packet(queuename):
         "msg_mj_type" : ord('r'),
         "msg_mi_type" : ord('r')
         }
-    msg = str(QUEUENAME)
+    msg = str(meta)
         
     return pack(header_dict, message_data = msg)
 
