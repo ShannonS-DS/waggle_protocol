@@ -144,7 +144,7 @@ def puid_int2hexstr(puid, length):
     return "%0s"%format(puid,'x').lower().zfill(2*length)
 
 
-def pack(header_data, message_data="", s_puid="", r_puid=""):
+def pack(header_data, message_data=""):
     """
         Takes header and message information and yields packets representing that data.
 
@@ -180,13 +180,13 @@ def pack(header_data, message_data="", s_puid="", r_puid=""):
     optional_data = ""
     # The process order is important!
     # PUIDs presented with the length of 4
-    if s_puid and len(s_puid) == 8:
-        auto_header['ext_header'] = optional_key['s_puid'] = 1
-        optional_data += bin_pack(puid_hexstr2int(s_puid))
+    if "s_puid" in auto_header and len(auto_header["s_puid"]) == 8:
+        auto_header["ext_header"] = optional_key["s_puid"] = 1
+        optional_data += bin_pack(puid_hexstr2int(auto_header["s_puid"]))
     
-    if r_puid and len(r_puid) == 8:
-        auto_header['ext_header'] = optional_key['r_puid'] = 1
-        optional_data += bin_pack(puid_hexstr2int(r_puid))
+    if "r_puid" in auto_header and len(auto_header["r_puid"]) == 8:
+        auto_header["ext_header"] = optional_key["'r_puid"] = 1
+        optional_data += bin_pack(puid_hexstr2int(auto_header["r_puid"]))
 
     #If it's a string, make it a file object
     if(type(message_data) is str):
