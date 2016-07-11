@@ -9,7 +9,7 @@
 import sys
 sys.path.append("..")
 from waggle_protocol.protocol.PacketHandler import *
-from cStringIO import StringIO
+from io import StringIO
 from collections import deque
 
 class PacketAssembler(object):

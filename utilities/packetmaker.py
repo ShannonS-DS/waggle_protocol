@@ -3,7 +3,7 @@
     This module contains a few utilities that autogenerate complete simple packets,
     such as ping and time request packets.
 """
-from gPickler import gPickle
+from .gPickler import gPickle
 import sys, os, os.path
 sys.path.append("..")
 sys.path.append("../..")

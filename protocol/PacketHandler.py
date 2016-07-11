@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # PacketHandler.py
 """
    This module contains methods relating to the construction and interpretation of waggle packets.
@@ -6,7 +8,7 @@
 """
 from crcmod.predefined import mkCrcFun
 from struct import pack
-import cStringIO as StringIO
+import io as StringIO
 import time, logging, sys, struct
 import os.path
 

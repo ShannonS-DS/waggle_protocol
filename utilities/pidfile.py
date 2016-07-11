@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def read_file( str ):
-    print "read_file: "+str
+    print(("read_file: "+str))
     if not os.path.isfile(str) :
         return ""
     with open(str,'r') as file_:

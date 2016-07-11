@@ -3,7 +3,7 @@
 	This module contians compression utilities intended to put objects into a format
 	sendable through waggle.
 """
-import cPickle as Pickle
+import pickle as Pickle
 from zlib import compress, decompress
 
 def gPickle(data):
