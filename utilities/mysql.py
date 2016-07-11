@@ -101,11 +101,12 @@ class Mysql(object):
         if row :
     
             # this query expects that at least one 
-            find_unused_port_query = """SELECT t1.reverse_ssh_port+1 AS Missing
-            FROM nodes AS t1
-            LEFT JOIN nodes AS t2 ON t1.reverse_ssh_port+1 = t2.reverse_ssh_port
-            WHERE t2.reverse_ssh_port IS NULL
-            ORDER BY t1.reverse_ssh_port LIMIT 1;"""
+            find_unused_port_query = """SELECT t1.reverse_ssh_port+1 AS Missing            
+                    FROM nodes AS t1            
+                    LEFT JOIN nodes AS t2 ON t1.reverse_ssh_port+1 = t2.reverse_ssh_port            
+                    WHERE t1.reverse_ssh_port IS NOT NULL 
+                        AND t2.reverse_ssh_port IS NULL            
+                    ORDER BY t1.reverse_ssh_port LIMIT 1;"""
         
             newport = self.query_one(find_unused_port_query)
         
