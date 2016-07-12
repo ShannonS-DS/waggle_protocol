@@ -92,8 +92,8 @@ class Mysql(object):
             port = None  
     
         
-            return port
-        return None
+        return port
+        #return None
 
     def find_unused_port(self):
         # first try port = 10000
