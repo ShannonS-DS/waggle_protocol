@@ -168,7 +168,7 @@ def pack(header_data, message_data=""):
 
         #Calculate the CRC, pack it all up, and return the result.
         SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
-        msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
+        msg_crc32 = bin_pack(crc32fun(msg.encode('iso-8859-15')),FOOTER_LENGTH)
 
         yield header + msg + msg_crc32
 
@@ -187,7 +187,7 @@ def pack(header_data, message_data=""):
             msg = bin_pack(packetNum,4) + message_data.read(MAX_PACKET_SIZE)
             SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
             packetNum += 1
-            msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
+            msg_crc32 = bin_pack(crc32fun(msg.encode('iso-8859-15')),FOOTER_LENGTH)
             yield header + msg + msg_crc32
             length -= MAX_PACKET_SIZE
 
@@ -196,7 +196,7 @@ def pack(header_data, message_data=""):
             header = pack_header(auto_header)
             msg = bin_pack(packetNum,4) + message_data.read(MAX_PACKET_SIZE)
             SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
-            msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
+            msg_crc32 = bin_pack(crc32fun(msg.encode('iso-8859-15')),FOOTER_LENGTH)
             yield header + msg + msg_crc32
 
 def unpack(packet):
@@ -210,7 +210,7 @@ def unpack(packet):
     """
     #crc32fun = mkCrcFun('crc-32')
     header = None
-    if(crc32fun(packet[HEADER_LENGTH:-FOOTER_LENGTH]) != _bin_unpack(packet[-FOOTER_LENGTH:])):
+    if(crc32fun(packet[HEADER_LENGTH:-FOOTER_LENGTH].encode('iso-8859-15')) != _bin_unpack(packet[-FOOTER_LENGTH:])):
         raise IOError("Packet body CRC-32 failed.")
     try:
         header = _unpack_header(packet[:HEADER_LENGTH])
@@ -263,7 +263,7 @@ def pack_header(header_data):
 
     #Compute the header CRC and stick it on the end
     #crc16 = mkCrcFun('crc-16')
-    header += bin_pack(crc16fun(header),HEADER_BYTELENGTHS['crc-16'])
+    header += bin_pack(crc16fun(header.encode('iso-8859-15')),HEADER_BYTELENGTHS['crc-16'])
 
     return header
 
@@ -336,7 +336,8 @@ def bin_pack(n, size):
     for i in range(1, size + 1):
         packed[-i] = 0xff & (n >> (i - 1)*8)
 
-    return str(packed)
+    #return str(packed)    # for python2
+    return bytes(packed).decode('iso-8859-15') # for python3
     
     
     
@@ -369,7 +370,7 @@ def _unpack_header(packed_header):
     #CRC16 = mkCrcFun('CRC-16')
     header_IO.seek(HEADER_LOCATIONS["crc-16"])
     headerCRC = header_IO.read(2)
-    if(crc16fun(packed_header[:-2]) != _bin_unpack(headerCRC)):
+    if(crc16fun(packed_header[:-2].encode('iso-8859-15')) != _bin_unpack(headerCRC)):
         raise IOError("Header CRC-16 check failed")
     header_IO.seek(0)
 
