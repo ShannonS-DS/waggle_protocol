@@ -13,7 +13,7 @@ def gPickle(data):
 		:param object data: The sensor data to gPickle
 		:rtype: string
 	"""
-	return compress(Pickle.dumps(data))
+	return compress(Pickle.dumps(data.encode('iso-8859-15'))).decode('iso-8859-15')
 
 def un_gPickle(data):
 	"""
@@ -22,4 +22,4 @@ def un_gPickle(data):
 	    :param string data: The data to be un gPickled
 	    :rtype: object
 	"""
-	return Pickle.loads(decompress(data))
+	return Pickle.loads(decompress(data.encode('iso-8859-15'))).decode('iso-8859-15')
