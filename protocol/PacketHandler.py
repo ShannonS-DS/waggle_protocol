@@ -147,6 +147,8 @@ def pack(header_data, message_data=""):
     #If it's a string, make it a file object
     if(type(message_data) is str):
         message_data = StringIO.StringIO(message_data)
+    elif(tyep(message_data) is bytes):
+        message_data = StringIO.BytesIO(message_data)
 
     #If it's under 1K, send it off as a single packet
     #Jump to the end of the file
