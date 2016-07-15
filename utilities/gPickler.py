@@ -22,4 +22,4 @@ def un_gPickle(data):
 	    :param string data: The data to be un gPickled
 	    :rtype: object
 	"""
-	return Pickle.loads(decompress(data).decode('iso-8859-15')
+	return Pickle.loads(decompress(data.encode('iso-8859-15')))
