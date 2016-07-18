@@ -315,7 +315,7 @@ def set_header_field(header_bytearray, field, value):
 """
 def write_header_crc(header_bytearray):
      
-    new_crc = crc16fun(str(header_bytearray[:crc16_position]))
+    new_crc = crc16fun(bytes(header_bytearray[:crc16_position]))
     
     new_crc_packed = bin_pack(new_crc,HEADER_BYTELENGTHS['crc-16'])
 
