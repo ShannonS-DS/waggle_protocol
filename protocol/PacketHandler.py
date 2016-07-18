@@ -288,6 +288,8 @@ def get_header(packet):
     (bytearray header) Sets header field in an bytearray. Value also has to be an bytearray.
 """
 def set_header_field(header_bytearray, field, value):
+    if type(value) is str:
+        value = value.encode('iso-8859-15')
     try:
         field_position = HEADER_LOCATIONS[field]
         field_length = HEADER_BYTELENGTHS[field]
