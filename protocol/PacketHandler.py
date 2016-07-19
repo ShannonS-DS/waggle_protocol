@@ -149,7 +149,8 @@ def pack(header_data, message_data=""):
     # The encoding 'iso-8859-1' only covers char that is less than 256
     if(type(message_data) is str):
         message_data = io.BytesIO(message_data.encode('iso-8859-1'))
-
+    else:
+        message_data = io.BytesIO(message_data)
     #If it's under 1K, send it off as a single packet
     #Jump to the end of the file
     message_data.seek(0,2)
@@ -212,7 +213,7 @@ def unpack(packet):
     """
     #crc32fun = mkCrcFun('crc-32')
     header = None
-    if(crc32fun(packet[HEADER_LENGTH:-FOOTER_LENGTH].encode('iso-8859-1')) != _bin_unpack(packet[-FOOTER_LENGTH:])):
+    if(crc32fun(packet[HEADER_LENGTH:-FOOTER_LENGTH]) != _bin_unpack(packet[-FOOTER_LENGTH:])):
         raise IOError("Packet body CRC-32 failed.")
     try:
         header = _unpack_header(packet[:HEADER_LENGTH])
@@ -374,7 +375,7 @@ def _unpack_header(packed_header):
     #CRC16 = mkCrcFun('CRC-16')
     header_IO.seek(HEADER_LOCATIONS["crc-16"])
     headerCRC = header_IO.read(2)
-    if(crc16fun(packed_header[:-2].encode('iso-8859-1')) != _bin_unpack(headerCRC)):
+    if(crc16fun(packed_header[:-2]) != _bin_unpack(headerCRC)):
         raise IOError("Header CRC-16 check failed")
     header_IO.seek(0)
 
