@@ -172,7 +172,7 @@ def pack(header_data, message_data=""):
         SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
         msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
 
-        yield header + msg + msg_crc32
+        yield bytes(header) + msg + bytes(msg_crc32)
 
     #Multi-packet
     else:
@@ -190,7 +190,7 @@ def pack(header_data, message_data=""):
             SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
             packetNum += 1
             msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
-            yield header + msg + msg_crc32
+            yield bytes(header) + msg + bytes(msg_crc32)
             length -= MAX_PACKET_SIZE
 
         # Finish sending the message
@@ -199,7 +199,7 @@ def pack(header_data, message_data=""):
             msg = bin_pack(packetNum,4) + message_data.read(MAX_PACKET_SIZE)
             SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
             msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
-            yield header + msg + msg_crc32
+            yield bytes(header) + msg + bytes(msg_crc32)
 
 def unpack(packet):
     """
