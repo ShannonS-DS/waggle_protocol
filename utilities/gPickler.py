@@ -13,7 +13,7 @@ def gPickle(data):
 		:param object data: The sensor data to gPickle
 		:rtype: string
 	"""
-	return compress(Pickle.dumps(data))
+	return compress(Pickle.dumps(data, protocol=2))
 
 def un_gPickle(data):
 	"""
