@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 # copied from http://voorloopnul.com/blog/a-python-netstat-in-less-than-100-lines-of-code/
 # by Ricardo Pascal on June 27, 2011
@@ -86,4 +86,4 @@ def _get_pid_of_inode(inode):
 
 if __name__ == '__main__':
     for conn in netstat():
-        print conn
+        print(conn)

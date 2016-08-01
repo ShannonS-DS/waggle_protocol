@@ -1,13 +1,15 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
+# PacketHandler.py
 """
    This module contains methods relating to the construction and interpretation of waggle packets. This follows Waggle messaging protocol version 0.4
    The main functions to examine in this class are pack and unpack. This module handles
    all CRC checking for the packets, so any sucessfully unpacked packet is known to be correct.
+   In Python3, data will be treated using bytearray.
 """
 from crcmod.predefined import mkCrcFun
 from struct import pack
-import cStringIO as StringIO
+import io
 import time, logging, sys, struct
 import os.path
 
@@ -189,9 +191,11 @@ def pack(header_data, message_data=""):
         optional_data += bin_pack(puid_hexstr2int(auto_header["r_puid"]))
 
     #If it's a string, make it a file object
+    # The encoding 'iso-8859-1' only covers char that is less than 256
     if(type(message_data) is str):
-        message_data = StringIO.StringIO(message_data)
-
+        message_data = io.BytesIO(message_data.encode('iso-8859-1'))
+    else:
+        message_data = io.BytesIO(message_data)
     #If it's under 1K, send it off as a single packet
     #Jump to the end of the file
     message_data.seek(0,2)
@@ -218,7 +222,7 @@ def pack(header_data, message_data=""):
         SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
         msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
 
-        yield header + msg + msg_crc32
+        yield bytes(header) + msg + bytes(msg_crc32)
 
     #Multi-packet
     else:
@@ -245,7 +249,7 @@ def pack(header_data, message_data=""):
             msg = bin_pack(chunkNum,3) + bin_pack(numofchunks,3) + message_data.read(MAX_PACKET_SIZE)
             chunkNum += 1
             msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
-            yield header + msg + msg_crc32
+            yield bytes(header) + msg + bytes(msg_crc32)
             length -= MAX_PACKET_SIZE
 
         # Finish sending the message
@@ -254,7 +258,7 @@ def pack(header_data, message_data=""):
             msg = bin_pack(chunkNum,3) + bin_pack(numofchunks,3) + message_data.read(MAX_PACKET_SIZE)
             SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
             msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
-            yield header + msg + msg_crc32
+            yield bytes(header) + msg + bytes(msg_crc32)
 
 def unpack(packet):
     """
@@ -305,10 +309,10 @@ def pack_header(header_data):
         :raises KeyError: An exception will be raised if the provided dictionary does not contain required information
     """
 
-    header = str()
+    header = bytearray()
     try:
-        header += _pack_version(header_data["prot_ver"])                                                   # Serialize protocol version
-        header += _pack_flags(header_data["flags"])                                                        # Packet flags
+        header.append(_pack_version(header_data["prot_ver"]))                                                   # Serialize protocol version
+        header.append(_pack_flags(header_data["flags"]))                                                        # Packet flags
         header += bin_pack(header_data["len_body"],HEADER_BYTELENGTHS["len_body"])          # Length of message body
         header += bin_pack(header_data["time"],HEADER_BYTELENGTHS["time"])                  # Timestamp
         header += bin_pack(header_data["msg_mj_type"], HEADER_BYTELENGTHS["msg_mj_type"])   # Message Major Type
@@ -327,7 +331,7 @@ def pack_header(header_data):
 
     #Compute the header CRC and stick it on the end
     #crc16 = mkCrcFun('crc-16')
-    header += bin_pack(crc16fun(header),HEADER_BYTELENGTHS['crc-16'])
+    header += bin_pack(crc16fun(header) ,HEADER_BYTELENGTHS['crc-16'])
 
     return header
 
@@ -352,6 +356,8 @@ def get_header(packet):
     (bytearray header) Sets header field in an bytearray. Value also has to be an bytearray.
 """
 def set_header_field(header_bytearray, field, value):
+    if type(value) is str:
+        value = value.encode('iso-8859-1')
     try:
         field_position = HEADER_LOCATIONS[field]
         field_length = HEADER_BYTELENGTHS[field]
@@ -379,7 +385,7 @@ def set_header_field(header_bytearray, field, value):
 """
 def write_header_crc(header_bytearray):
      
-    new_crc = crc16fun(str(header_bytearray[:crc16_position]))
+    new_crc = crc16fun(bytes(header_bytearray[:crc16_position]))
     
     new_crc_packed = bin_pack(new_crc,HEADER_BYTELENGTHS['crc-16'])
 
@@ -400,7 +406,8 @@ def bin_pack(n, size):
     for i in range(1, size + 1):
         packed[-i] = 0xff & (n >> (i - 1)*8)
 
-    return str(packed)
+    #return str(packed)    # for python2
+    return packed # for python3
     
     
     
@@ -417,7 +424,7 @@ def _unpack_header(packed_header):
     """
         Given a packed header, this method will return a dictionary with the unpacked contents.
 
-        :param string packed_header: A string representing a waggle header
+        :param bytes packed_header: A string representing a waggle header
         :rtype: Dictionary
         :raises IndexError: An IndexError will be raised if the packed header is not 40 bytes long
         :raises IOError: An IOError will be raised if the packet header fails its CRC-16 check
@@ -427,7 +434,7 @@ def _unpack_header(packed_header):
     if len(packed_header) != HEADER_LENGTH:
         raise IndexError("Tried to unpack a waggle header that was %d instead of %d bytes long." % (len(packed_header), HEADER_LENGTH ) )
 
-    header_IO = StringIO.StringIO(packed_header)
+    header_IO = io.BytesIO(packed_header)
 
     #Check the CRC
     #CRC16 = mkCrcFun('CRC-16')
@@ -518,7 +525,7 @@ def _pack_flags(flags):
         :param tuple(int,int,bool) flags:
         :rtype: string
     """
-    return chr((flags[0] << 5) | (flags[1] << 2) | (flags[2] << 1))
+    return (flags[0] << 5) | (flags[1] << 2) | (flags[2] << 1)
 
 
 def _unpack_flags(flagByte):
@@ -579,7 +586,7 @@ def _pack_version(version):
     major = int(versions[0])
     minor = int(versions[1])
 
-    return chr((major << 4) | (0xf & minor))
+    return (major << 4) | (0xf & minor)
 
 
 
@@ -595,7 +602,7 @@ def _bin_unpack(string):
     x = 0
 
     for i in range(1, len(string) + 1):
-        x = x | (ord(string[-i]) << (i - 1)*8)
+        x = x | (string[-i] << (i - 1)*8)
 
     return x
 
