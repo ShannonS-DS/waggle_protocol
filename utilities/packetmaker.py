@@ -9,6 +9,44 @@ sys.path.append("..")
 sys.path.append("../..")
 from waggle_protocol.protocol.PacketHandler import *
 
+# Dictionary of supported fuctions
+# Mj/Mi types mapped to name of the function, mandatory args, and optional args
+func_dict = {('p', 'r'): (make_ping_packet, (), ('s_puid', 'r_puid')),
+             ('t', 'r'): (make_time_packet, (), ('s_puid', 'r_puid')),
+             ('s', 'd'): (make_data_packet, ('data') ('s_puid', 'r_puid')),
+             ('r', 'r'): (registration_packet, ('data'), ('s_puid', 'r_puid')),
+             ('r', 'n'): (make_config_reg, ('data'), ()),
+             ('r', 'a'): (make_registration_response, ("r_uniqid"), ("s_uniqid", "s_puid", "r_puid", "resp_session", "data")),
+             ('r', 'd'): (deregistration_packet, ("r_uniqid"), ('s_puid', 'r_puid'))}
+
+def make_packet(argDict):
+    """
+        Makes a packet according to the major and minor type of the data and returns waggle message(s) for the data.
+        :param Dictionary argDict: all arguments to make waggle message
+        :rtype string: one or more waggle message
+    """
+    try:
+        mj_type = argDict["msg_mj_type"]
+        mi_type = argDict["msg_mi_type"]
+
+        # Get function info
+        func = func_dict[(mj_type, mi_type)][0]
+        mandatoryArgs = func_dict[(mj_type, mi_type)][1]
+        optionalArgs = func_dict[(mj_type, mi_type)][2]
+
+        args = [argDict[item] for item in mandatoryArgs]
+
+        # This only works for string type arguments
+        for item in optionalArgs:
+            if item in msg:
+                args.append(msg[item])
+            else:
+                args.append("")
+
+        return func(*args)
+    except KeyError as e:
+        err = {"error":str(e)}
+        return err
 
 def make_ping_packet():
     """
