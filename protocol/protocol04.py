@@ -1,19 +1,82 @@
-#!/usr/bin/env python3
-
-# PacketHandler.py
+# protocol04.py
 """
-   This module contains methods relating to the construction and interpretation of waggle packets.
-   The main functions to examine in this class are pack and unpack. This module handles
-   all CRC checking for the packets, so any sucessfully unpacked packet is known to be correct.
+   This module provides how to pack and unpack waggle message version 0.4.
    In Python3, data will be treated using bytearray.
 """
+from crcmod.predefined import mkCrcFun
+from struct import pack
 import io
 import time, logging, sys, struct
 import os.path
 
+from .protocol03 import *
+
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+
+
+#Where each piece of information in a packet header is stored, by byte
+# Total header size is 40 bytes.
+HEADER_LOCATIONS = {
+    "prot_ver"         : 0,
+    "flags"            : 1,
+    "len_body"         : 2,
+    "time"             : 4,
+    "msg_mj_type"      : 8,
+    "msg_mi_type"      : 9,
+    "ext_header"       : 10,    # 1 if puid presented, otherwise 0
+    "optional_key"     : 11,    # Just 0
+    "s_uniqid"         : 12,    # Find from /etc/waggle/hostname
+    "r_uniqid"         : 20,    # Defined as 0 for the cloud
+    "snd_session"      : 28,    # For Friday: just zero. Eventually automatic
+    "resp_session"     : 30,    # Normally 0, sometimes used
+    "snd_seq"          : 32,    # Tracked by this module
+    "resp_seq"         : 35,    # Normally 0, sometimes used
+    "crc-16"           : 38
+}
+#The length of each piece of data, in bytes
+HEADER_BYTELENGTHS = {
+    "prot_ver"         : 1,
+    "flags"            : 1,
+    "len_body"         : 2,
+    "time"             : 4,
+    "msg_mj_type"      : 1,
+    "msg_mi_type"      : 1,
+    "ext_header"       : 1,
+    "optional_key"     : 1,
+    "s_uniqid"         : 8,
+    "r_uniqid"         : 8,
+    "snd_session"      : 2,
+    "resp_session"     : 2,
+    "snd_seq"          : 3,
+    "resp_seq"         : 3,
+    "crc-16"           : 2
+}
+
+OPTIONAL_KEY_BIT_LOCATIONS = {
+    "s_puid"           : 0,
+    "r_puid"           : 1,
+    "reserved1"        : 2,
+    "reserved1"        : 3,
+    "reserved1"        : 4,
+    "reserved1"        : 5,
+    "reserved1"        : 6,
+    "mmsg"             : 7
+}
+
+OPTIONAL_KEY_BYTELENGTHS = {
+    "s_puid"           : 4,
+    "r_puid"           : 4,
+    "reserved1"        : 0,
+    "reserved1"        : 0,
+    "reserved1"        : 0,
+    "reserved1"        : 0,
+    "reserved1"        : 0,
+    "mmsg"             : 6
+}
+
 
 SIZE_2_TYPE =  [ 'c' for i in range(16)]
 # '>' means big-endian
@@ -22,13 +85,28 @@ SIZE_2_TYPE[2] = '>H' # unsigned short
 SIZE_2_TYPE[4] = '>I' # unsigned int
 SIZE_2_TYPE[8] = '>q' # long long
 
-def _pack_int(value, size):
-    return struct.pack(SIZE_2_TYPE[size], value)
 
-PACKER = WaggleMessage()
+#The total header length
+HEADER_LENGTH = 40
+FOOTER_LENGTH = 4
+MAX_SEQ_NUMBER = pow(2,8*HEADER_BYTELENGTHS["snd_seq"])
+MAX_PACKET_SIZE = 1024
+
+VERSION = "0.4"
+
+#Sequence becomes zero when the node starts again or when the package is
+#reimported
+SEQUENCE = 0
 
 #The /etc/waggle folder has waggle specific information
 S_UNIQUEID_HEX=None
+
+
+#Create the CRC functions
+crc32fun = mkCrcFun('crc-32')
+crc16fun = mkCrcFun('crc-16')
+
+crc16_position = HEADER_LOCATIONS['crc-16']
 
 def nodeid_hexstr2int(node_id_hex):
     return int("0x" + node_id_hex, 0)
@@ -37,10 +115,9 @@ if os.path.isfile('/etc/waggle/node_id'):
     with open('/etc/waggle/node_id','r') as file_:
         S_UNIQUEID_HEX = file_.read().rstrip('\n')
     
-    # Commented it. We do not check the length of s_uniqid as each protocol could potentially have different length of it.
-    # if len(S_UNIQUEID_HEX) != 2*HEADER_BYTELENGTHS["s_uniqid"]:
-    #     logger.error("node id in /etc/waggle/node_id has wrong length (%d)" % (len(S_UNIQUEID_HEX)))
-    #     sys.exit(1)
+    if len(S_UNIQUEID_HEX) != 2*HEADER_BYTELENGTHS["s_uniqid"]:
+        logger.error("node id in /etc/waggle/node_id has wrong length (%d)" % (len(S_UNIQUEID_HEX)))
+        sys.exit(1)
     
     S_UNIQUEID_HEX_INT= nodeid_hexstr2int(S_UNIQUEID_HEX)
 
@@ -51,13 +128,23 @@ else:
     logger.debug("file /etc/waggle/node_id not found")
     S_UNIQUEID_HEX_INT = 0
     
-PACKER.S_UNIQUEID_HEX = S_UNIQUEID_HEX
-PACKER.S_UNIQUEID_HEX_INT = S_UNIQUEID_HEX_INT
+def _pack_int(value, size):
+    return struct.pack(SIZE_2_TYPE[size], value)
 
-def nodeid_int2hexstr(node_id, length):
+
+def nodeid_int2hexstr(node_id):
     #return hex(node_id)[2:].zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
-    #return "%0s"%format(node_id,'x').lower().zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
-    return "%0s"%format(node_id,'x').lower().zfill(2*length)
+    return "%0s"%format(node_id,'x').lower().zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
+
+def puid_hexstr2int(puid_hex):
+    return int("0x" + puid_hex, 0)
+
+def puid_int2hexstr(puid, length):
+    #return hex(node_id)[2:].zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
+    return "%0s"%format(puid,'x').lower().zfill(2*length)
+
+def ver(self):
+    return VERSION
 
 def pack(header_data, message_data=""):
     """
@@ -68,13 +155,110 @@ def pack(header_data, message_data=""):
         :yields: string
         :raises KeyError: A KeyError will be raised if the header_data dictionary is not properly formatted
     """
-    # Use 0.3 as default
-    if not 'prot_ver' in header_data:
-        header_data['prot_ver'] = "0.3"
+    global SEQUENCE
+    global S_UNIQUEID_HEX_INT
+    global VERSION
 
-    global PACKER
+    #Generate the automatic fields
+    auto_header = {
+        "prot_ver"         : VERSION,
+        "flags"            : (1,1,True),
+        "len_body"         : len(message_data),
+        "time"             : int(time.time()),
+        "ext_header"       : 0,                   # PUID, MMSG, RESERVED
+        "optional_key"     : (0,0,0,0,0,0,0,0),   # option flags
+        "s_uniqid"         : S_UNIQUEID_HEX_INT,
+        "r_uniqid"         : 0,                   # meaning the beehive server
+        "snd_session"      : 0,
+        "resp_session"     : 0,
+        "snd_seq"          : SEQUENCE,
+        "resp_seq"         : 0
+    }
+    #and update them with user-supplied values
+    auto_header.update(header_data)
 
-    return PACKER.pack(header_data, message_data)
+    # Optional flags processed here
+    optional_key = {}
+    optional_data = ""
+    # The process order is important!
+    # PUIDs presented with the length of 4
+    if "s_puid" in auto_header and len(auto_header["s_puid"]) == 8:
+        auto_header["ext_header"] = optional_key["s_puid"] = 1
+        optional_data += bin_pack(puid_hexstr2int(auto_header["s_puid"]))
+    
+    if "r_puid" in auto_header and len(auto_header["r_puid"]) == 8:
+        auto_header["ext_header"] = optional_key["'r_puid"] = 1
+        optional_data += bin_pack(puid_hexstr2int(auto_header["r_puid"]))
+
+    #If it's a string, make it a file object
+    # The encoding 'iso-8859-1' only covers char that is less than 256
+    if(type(message_data) is str):
+        message_data = io.BytesIO(message_data.encode('iso-8859-1'))
+    else:
+        message_data = io.BytesIO(message_data)
+    #If it's under 1K, send it off as a single packet
+    #Jump to the end of the file
+    message_data.seek(0,2)
+
+    header = None
+
+    #See if it is less than 1K
+    if(message_data.tell() < MAX_PACKET_SIZE):
+        # Update optional key flags
+        op_tuple = _pack_optional_header(optional_key)
+        auto_header.update(op_tuple)
+
+        try:
+            header = pack_header(auto_header)
+        except KeyError as e:
+            raise
+
+        #Save the short message to a string
+        message_data.seek(0)
+        msg = bin_pack(optional_data, len(optional_data)) + message_data.read()
+        message_data.close()
+
+        #Calculate the CRC, pack it all up, and return the result.
+        SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
+        msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
+
+        yield bytes(header) + msg + bytes(msg_crc32)
+
+    #Multi-packet
+    else:
+        length = message_data.tell()
+        message_data.seek(0)
+        chunkNum = 1
+
+        # Calculate number of chunks for the data
+        numofchunks = length / MAX_PACKET_SIZE
+        if length % MAX_PACKET_SIZE > 0:
+            numofchunks += 1
+        auto_header['ext_header'] = optional_key['mmsg'] = 1
+
+        # Update optional key flags
+        op_tuple = _pack_optional_header(optional_key)
+        auto_header.update(op_tuple)
+
+        # Create smaller packets MAX_PACKET_SIZE bytes at a time, also attach packet number
+        while length > MAX_PACKET_SIZE:
+            try:
+                header = pack_header(auto_header)
+            except KeyError as e:
+                raise
+            msg = bin_pack(chunkNum,3) + bin_pack(numofchunks,3) + message_data.read(MAX_PACKET_SIZE)
+            chunkNum += 1
+            msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
+            yield bytes(header) + msg + bytes(msg_crc32)
+            length -= MAX_PACKET_SIZE
+
+        # Finish sending the message
+        if length > 0:
+            header = pack_header(auto_header)
+            msg = bin_pack(chunkNum,3) + bin_pack(numofchunks,3) + message_data.read(MAX_PACKET_SIZE)
+            SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
+            msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
+            yield bytes(header) + msg + bytes(msg_crc32)
 
 def unpack(packet):
     """
