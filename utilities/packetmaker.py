@@ -13,7 +13,7 @@ from waggle_protocol.protocol.PacketHandler import *
 # Mj/Mi types mapped to name of the function, mandatory args, and optional args
 func_dict = {('p', 'r'): (make_ping_packet, (), ('s_puid', 'r_puid')),
              ('t', 'r'): (make_time_packet, (), ('s_puid', 'r_puid')),
-             ('s', 'd'): (make_data_packet, ('data') ('s_puid', 'r_puid')),
+             ('s', 'd'): (make_data_packet, ('data'), ('s_puid', 'r_puid')),
              ('r', 'r'): (registration_packet, ('data'), ('s_puid', 'r_puid')),
              ('r', 'n'): (make_config_reg, ('data'), ()),
              ('r', 'a'): (make_registration_response, ("r_uniqid"), ("s_uniqid", "s_puid", "r_puid", "resp_session", "data")),
@@ -130,6 +130,24 @@ def make_GN_reg(recp_ID):
 
     return pack(header_dict, message_data = '')
 
+def make_registration_response(recp_ID, s_uniqid = "", s_puid = "", r_puid = "", resp_session = "", data = ""):
+    """
+        Returns registration response. Normally used in Beehive server side.
+        :param recp_ID: Unique ID of the message recipient
+        :rtype: string
+    """
+
+    header_dict = {
+        "msg_mj_type" : ord('r'),
+        "msg_mi_type" : ord('a'),
+        "r_uniqid" : recp_ID
+    }
+    if s_uniqid:
+        header_dict['s_uniqid'] = s_uniqid
+    if 
+
+    return pack(header_dict, data)
+    
 #TODO may want to add an additional option argument to specify sender_id so that server can send a de-registration message for a GN
 def deregistration_packet(recp_ID):
     """
