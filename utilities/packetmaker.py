@@ -3,7 +3,7 @@
     This module contains a few utilities that autogenerate complete simple packets,
     such as ping and time request packets.
 """
-from .gPickler import gPickle
+from gPickler import gPickle
 import sys, os, os.path
 sys.path.append("..")
 sys.path.append("../..")
@@ -28,8 +28,8 @@ def make_packet(argDict):
 
         # This only works for string type arguments
         for item in optionalArgs:
-            if item in msg:
-                args.append(msg[item])
+            if item in argDict:
+                args.append(argDict[item])
             else:
                 args.append("")
 
@@ -38,7 +38,7 @@ def make_packet(argDict):
         err = {"error":str(e)}
         return err
 
-def make_ping_packet():
+def make_ping_packet(s_puid = "", r_puid = ""):
     """
         Returns a simple ping request packet.
 
@@ -48,9 +48,13 @@ def make_ping_packet():
         "msg_mj_type" : ord('p'),
         "msg_mi_type" : ord('r')
     }
+    if s_puid:
+        header_dict['s_puid'] = s_puid
+    if r_puid:
+        header_dict['r_puid'] = r_puid
     return pack(header_dict)
 
-def make_time_packet():
+def make_time_packet(s_puid = "", r_puid = ""):
     """
         Returns a simple time request packet.
 
@@ -60,9 +64,13 @@ def make_time_packet():
         "msg_mj_type" : ord('t'),
         "msg_mi_type" : ord('r')
     }
+    if s_puid:
+        header_dict['s_puid'] = s_puid
+    if r_puid:
+        header_dict['r_puid'] = r_puid
     return pack(header_dict)
 
-def make_data_packet(data):
+def make_data_packet(data, s_puid = "", r_puid = ""):
     """
     Compresses sensor data and returns a sensor data packet. 
 
@@ -74,9 +82,13 @@ def make_data_packet(data):
         "msg_mj_type" : ord('s'),
         "msg_mi_type" : ord('d')
         }
+    if s_puid:
+        header_dict['s_puid'] = s_puid
+    if r_puid:
+        header_dict['r_puid'] = r_puid
     return pack(header_dict, message_data = msg)
 
-def registration_packet(queuename):
+def registration_packet(queuename, s_puid = "", r_puid = ""):
     """
         Returns a registration request packet.
 
@@ -88,7 +100,10 @@ def registration_packet(queuename):
         "msg_mi_type" : ord('r')
         }
     msg = str(QUEUENAME)
-        
+    if s_puid:
+        header_dict['s_puid'] = s_puid
+    if r_puid:
+        header_dict['r_puid'] = r_puid
     return pack(header_dict, message_data = msg)
 
 def make_config_reg(config):
@@ -134,12 +149,17 @@ def make_registration_response(recp_ID, s_uniqid = "", s_puid = "", r_puid = "",
     }
     if s_uniqid:
         header_dict['s_uniqid'] = s_uniqid
-    #if 
+    if s_puid:
+        header_dict['s_puid'] = s_puid
+    if r_puid:
+        header_dict['r_puid'] = r_puid
+    if resp_session:
+        header_dict['resp_session'] = resp_session
 
     return pack(header_dict, data)
     
 #TODO may want to add an additional option argument to specify sender_id so that server can send a de-registration message for a GN
-def deregistration_packet(recp_ID):
+def deregistration_packet(r_uniqid, s_puid = "", r_puid = ""):
     """
         Returns a deregistration request packet.
 
@@ -150,9 +170,12 @@ def deregistration_packet(recp_ID):
     header_dict = {
         "msg_mj_type" : ord('r'),
         "msg_mi_type" : ord('d'),
-        "r_uniqid" : recp_ID
+        "r_uniqid" : r_uniqid
         }
-  
+    if s_puid:
+        header_dict['s_puid'] = s_puid
+    if r_puid:
+        header_dict['r_puid'] = r_puid
         
     return pack(header_dict, message_data = '')
 
@@ -160,11 +183,11 @@ def deregistration_packet(recp_ID):
 # Mj/Mi types mapped to name of the function, mandatory args, and optional args
 func_dict = {('p', 'r'): (make_ping_packet, (), ('s_puid', 'r_puid')),
              ('t', 'r'): (make_time_packet, (), ('s_puid', 'r_puid')),
-             ('s', 'd'): (make_data_packet, ('data'), ('s_puid', 'r_puid')),
-             ('r', 'r'): (registration_packet, ('data'), ('s_puid', 'r_puid')),
-             ('r', 'n'): (make_config_reg, ('data'), ()),
-             ('r', 'a'): (make_registration_response, ("r_uniqid"), ("s_uniqid", "s_puid", "r_puid", "resp_session", "data")),
-             ('r', 'd'): (deregistration_packet, ("r_uniqid"), ('s_puid', 'r_puid'))}
+             ('s', 'd'): (make_data_packet, ('data',), ('s_puid', 'r_puid')),
+             ('r', 'r'): (registration_packet, ('data',), ('s_puid', 'r_puid')),
+             ('r', 'n'): (make_config_reg, ('data',), ()),
+             ('r', 'a'): (make_registration_response, ("r_uniqid",), ("s_uniqid", "s_puid", "r_puid", "resp_session", "data")),
+             ('r', 'd'): (deregistration_packet, ("r_uniqid",), ('s_puid', 'r_puid'))}
 
 
 
