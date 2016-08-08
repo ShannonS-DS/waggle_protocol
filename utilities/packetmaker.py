@@ -3,7 +3,7 @@
     This module contains a few utilities that autogenerate complete simple packets,
     such as ping and time request packets.
 """
-from gPickler import gPickle
+from .gPickler import gPickle
 import sys, os, os.path
 sys.path.append("..")
 sys.path.append("../..")
@@ -35,8 +35,7 @@ def make_packet(argDict):
 
         return func(*args)
     except KeyError as e:
-        err = {"error":str(e)}
-        return err
+        raise
 
 def make_ping_packet(s_puid = "", r_puid = ""):
     """
