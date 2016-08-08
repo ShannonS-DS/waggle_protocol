@@ -144,7 +144,7 @@ def make_registration_response(recp_ID, s_uniqid = "", s_puid = "", r_puid = "",
     }
     if s_uniqid:
         header_dict['s_uniqid'] = s_uniqid
-    if 
+    #if 
 
     return pack(header_dict, data)
     
