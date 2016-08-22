@@ -1,19 +1,21 @@
+#!/usr/bin/env python3
+
 # PacketHandler.py
 """
-   This module contains methods relating to the construction and interpretation of waggle packets.
+   This module contains methods relating to the construction and interpretation of waggle packets. This module provides how to pack and unpack waggle message version 0.4.
    The main functions to examine in this class are pack and unpack. This module handles
    all CRC checking for the packets, so any sucessfully unpacked packet is known to be correct.
+   In Python3, data will be treated using bytearray.
 """
 from crcmod.predefined import mkCrcFun
 from struct import pack
-import cStringIO as StringIO
+import io
 import time, logging, sys, struct
 import os.path
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
 
 
 #Where each piece of information in a packet header is stored, by byte
@@ -25,11 +27,12 @@ HEADER_LOCATIONS = {
     "time"             : 4,
     "msg_mj_type"      : 8,
     "msg_mi_type"      : 9,
-    "snd_session"      : 10,    # For Friday: just zero. Eventually automatic
+    "ext_header"       : 10,    # 1 if puid presented, otherwise 0
+    "optional_key"     : 11,    # Just 0
     "s_uniqid"         : 12,    # Find from /etc/waggle/hostname
-    "ext_header"       : 20,    # Just 0
-    "resp_session"     : 22,    # Normally 0, sometimes used
-    "r_uniqid"         : 24,    # Defined as 0 for the cloud
+    "r_uniqid"         : 20,    # Defined as 0 for the cloud
+    "snd_session"      : 28,    # For Friday: just zero. Eventually automatic
+    "resp_session"     : 30,    # Normally 0, sometimes used
     "snd_seq"          : 32,    # Tracked by this module
     "resp_seq"         : 35,    # Normally 0, sometimes used
     "crc-16"           : 38
@@ -42,16 +45,38 @@ HEADER_BYTELENGTHS = {
     "time"             : 4,
     "msg_mj_type"      : 1,
     "msg_mi_type"      : 1,
-    "snd_session"      : 2,
+    "ext_header"       : 1,
+    "optional_key"     : 1,
     "s_uniqid"         : 8,
-    "ext_header"       : 2,
-    "resp_session"     : 2,
     "r_uniqid"         : 8,
+    "snd_session"      : 2,
+    "resp_session"     : 2,
     "snd_seq"          : 3,
     "resp_seq"         : 3,
     "crc-16"           : 2
 }
 
+OPTIONAL_KEY_BIT_LOCATIONS = {
+    "s_puid"           : 7,
+    "r_puid"           : 6,
+    "reserved1"        : 5,
+    "reserved1"        : 4,
+    "reserved1"        : 3,
+    "reserved1"        : 2,
+    "reserved1"        : 1,
+    "mmsg"             : 0
+}
+
+OPTIONAL_KEY_BYTELENGTHS = {
+    "s_puid"           : 4,
+    "r_puid"           : 4,
+    "reserved1"        : 0,
+    "reserved1"        : 0,
+    "reserved1"        : 0,
+    "reserved1"        : 0,
+    "reserved1"        : 0,
+    "mmsg"             : 6
+}
 
 SIZE_2_TYPE =  [ 'c' for i in range(16)]
 # '>' means big-endian
@@ -60,14 +85,13 @@ SIZE_2_TYPE[2] = '>H' # unsigned short
 SIZE_2_TYPE[4] = '>I' # unsigned int
 SIZE_2_TYPE[8] = '>q' # long long
 
-
 #The total header length
 HEADER_LENGTH = 40
 FOOTER_LENGTH = 4
 MAX_SEQ_NUMBER = pow(2,8*HEADER_BYTELENGTHS["snd_seq"])
 MAX_PACKET_SIZE = 1024
 
-VERSION = "0.3"
+VERSION = "0.4"
 
 #Sequence becomes zero when the node starts again or when the package is
 #reimported
@@ -76,7 +100,6 @@ SEQUENCE = 0
 #The /etc/waggle folder has waggle specific information
 S_UNIQUEID_HEX=None
 
-
 #Create the CRC functions
 crc32fun = mkCrcFun('crc-32')
 crc16fun = mkCrcFun('crc-16')
@@ -84,7 +107,10 @@ crc16fun = mkCrcFun('crc-16')
 crc16_position = HEADER_LOCATIONS['crc-16']
 
 def nodeid_hexstr2int(node_id_hex):
-    return int("0x" + node_id_hex, 0)
+    if type(node_id_hex) is str:
+        node_id_hex = node_id_hex.encode('iso-8859-1')
+    #return int.from_bytes(node_id_hex, byteorder='big')
+    return int(node_id_hex, 16)
  
 if os.path.isfile('/etc/waggle/node_id'):
     with open('/etc/waggle/node_id','r') as file_:
@@ -106,10 +132,18 @@ else:
 def _pack_int(value, size):
     return struct.pack(SIZE_2_TYPE[size], value)
 
-
 def nodeid_int2hexstr(node_id):
     #return hex(node_id)[2:].zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
     return "%0s"%format(node_id,'x').lower().zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
+
+def puid_hexstr2int(puid_hex):
+    if type(puid_hex) is str:
+        puid_hex = puid_hex.encode('iso-8859-1')
+    return int(puid_hex, 16)
+
+def puid_int2hexstr(puid, length):
+    #return hex(node_id)[2:].zfill(2*HEADER_BYTELENGTHS["s_uniqid"])
+    return "%0s"%format(puid,'x').lower().zfill(2*length)
 
 def pack(header_data, message_data=""):
     """
@@ -130,28 +164,43 @@ def pack(header_data, message_data=""):
         "flags"            : (1,1,True),
         "len_body"         : len(message_data),
         "time"             : int(time.time()),
-        "snd_session"      : 0,
+        "ext_header"       : 0,                   # PUID, MMSG, RESERVED
+        "optional_key"     : [0,0,0,0,0,0,0,0],   # option flags
         "s_uniqid"         : S_UNIQUEID_HEX_INT,
-        "ext_header"       : 0,
+        "r_uniqid"         : 0,                   # meaning the beehive server
+        "snd_session"      : 0,
         "resp_session"     : 0,
-        "r_uniqid"         : 0,
         "snd_seq"          : SEQUENCE,
-        "resp_seq"         : 0,
+        "resp_seq"         : 0
     }
     #and update them with user-supplied values
     auto_header.update(header_data)
 
+    # Optional flags processed here
+    optional_key = {}
+    optional_data = b''
+    # The process order is important!
+    # PUIDs presented with the length of 4
+    if "s_puid" in auto_header and len(auto_header["s_puid"]) == 8:
+        auto_header["ext_header"] = auto_header["optional_key"][OPTIONAL_KEY_BIT_LOCATIONS['s_puid']] = 1
+        optional_data += bin_pack(puid_hexstr2int(auto_header["s_puid"]), OPTIONAL_KEY_BYTELENGTHS['s_puid'])
+    
+    if "r_puid" in auto_header and len(auto_header["r_puid"]) == 8:
+        auto_header["ext_header"] = auto_header["optional_key"][OPTIONAL_KEY_BIT_LOCATIONS['r_puid']] = 1
+        optional_data += bin_pack(puid_hexstr2int(auto_header["r_puid"]), OPTIONAL_KEY_BYTELENGTHS['r_puid'])
 
     #If it's a string, make it a file object
+    # The encoding 'iso-8859-1' only covers char that is less than 256
     if(type(message_data) is str):
-        message_data = StringIO.StringIO(message_data)
-
+        message_data = io.BytesIO(message_data.encode('iso-8859-1'))
+    else:
+        message_data = io.BytesIO(message_data)
     #If it's under 1K, send it off as a single packet
     #Jump to the end of the file
     message_data.seek(0,2)
 
     header = None
-    
+
     #See if it is less than 1K
     if(message_data.tell() < MAX_PACKET_SIZE):
         try:
@@ -161,20 +210,26 @@ def pack(header_data, message_data=""):
 
         #Save the short message to a string
         message_data.seek(0)
-        msg = message_data.read()
+        msg = bytes(optional_data) + message_data.read()
         message_data.close()
 
         #Calculate the CRC, pack it all up, and return the result.
         SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
         msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
 
-        yield header + msg + msg_crc32
+        yield bytes(header) + msg + bytes(msg_crc32)
 
     #Multi-packet
     else:
         length = message_data.tell()
         message_data.seek(0)
-        packetNum = 0
+        chunkNum = 1
+
+        # Calculate number of chunks for the data
+        numofchunks = length / MAX_PACKET_SIZE
+        if length % MAX_PACKET_SIZE > 0:
+            numofchunks += 1
+        auto_header['ext_header'] = auto_header["optional_key"][OPTIONAL_KEY_BIT_LOCATIONS['mmsg']] = 1
 
         # Create smaller packets MAX_PACKET_SIZE bytes at a time, also attach packet number
         while length > MAX_PACKET_SIZE:
@@ -182,20 +237,19 @@ def pack(header_data, message_data=""):
                 header = pack_header(auto_header)
             except KeyError as e:
                 raise
-            msg = bin_pack(packetNum,4) + message_data.read(MAX_PACKET_SIZE)
-            SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
-            packetNum += 1
+            msg = bytes(optional_data) + bin_pack(chunkNum,3) + bin_pack(numofchunks,3) + message_data.read(MAX_PACKET_SIZE)
+            chunkNum += 1
             msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
-            yield header + msg + msg_crc32
+            yield bytes(header) + msg + bytes(msg_crc32)
             length -= MAX_PACKET_SIZE
 
         # Finish sending the message
         if length > 0:
             header = pack_header(auto_header)
-            msg = bin_pack(packetNum,4) + message_data.read(MAX_PACKET_SIZE)
+            msg = bytes(optional_data) + bin_pack(chunkNum,3) + bin_pack(numofchunks,3) + message_data.read(MAX_PACKET_SIZE)
             SEQUENCE = (SEQUENCE + 1) % MAX_SEQ_NUMBER
             msg_crc32 = bin_pack(crc32fun(msg),FOOTER_LENGTH)
-            yield header + msg + msg_crc32
+            yield bytes(header) + msg + bytes(msg_crc32)
 
 def unpack(packet):
     """
@@ -216,10 +270,18 @@ def unpack(packet):
         logger.error("_unpack_header failed: "+str(e))
         raise
 
-    return (header, packet[HEADER_LENGTH:-FOOTER_LENGTH])
+    # parse optional keys
+    optional_header = None
+    optional_header_length = 0
+    if header['ext_header'] == 1:
+        try:
+            (optional_header, optional_header_length) = _unpack_optional_header(header['optional_key'], packet[HEADER_LENGTH:-FOOTER_LENGTH])
+        except Exception as e:
+            logger.error("_unpack_sec_header failed: " + str(e))
+            raise
 
-
-
+    return (header, optional_header, packet[HEADER_LENGTH+optional_header_length:-FOOTER_LENGTH])
+   
 #def print_packet(packet):
 #    (header, body) = unpack(packet)
 #
@@ -229,8 +291,6 @@ def unpack(packet):
 #    logger.debug("body: %s\n" %(body))
 #    
     
-
-
 def pack_header(header_data):
     """
         Attempt to pack the data from the header_data dictionary into binary format according to Waggle protocol.
@@ -240,15 +300,16 @@ def pack_header(header_data):
         :raises KeyError: An exception will be raised if the provided dictionary does not contain required information
     """
 
-    header = str()
+    header = bytearray()
     try:
-        header += _pack_version(header_data["prot_ver"])                                                   # Serialize protocol version
-        header += _pack_flags(header_data["flags"])                                                        # Packet flags
+        header.append(_pack_version(header_data["prot_ver"]))                                                   # Serialize protocol version
+        header.append(_pack_flags(header_data["flags"]))                                                        # Packet flags
         header += bin_pack(header_data["len_body"],HEADER_BYTELENGTHS["len_body"])          # Length of message body
         header += bin_pack(header_data["time"],HEADER_BYTELENGTHS["time"])                  # Timestamp
         header += bin_pack(header_data["msg_mj_type"], HEADER_BYTELENGTHS["msg_mj_type"])   # Message Major Type
         header += bin_pack(header_data["msg_mi_type"], HEADER_BYTELENGTHS["msg_mi_type"])   # Message Minor Type
         header += bin_pack(header_data["ext_header"], HEADER_BYTELENGTHS["ext_header"])     # Optional extended header
+        header += _pack_optional_key(header_data["optional_key"])        # Optional flag header
         header += bin_pack(header_data["s_uniqid"],HEADER_BYTELENGTHS["s_uniqid"])          # Sender unique ID
         header += bin_pack(header_data["r_uniqid"],HEADER_BYTELENGTHS["r_uniqid"])          # Recipient unique ID
         header += bin_pack(header_data["snd_session"],HEADER_BYTELENGTHS["snd_session"])    # Send session number
@@ -261,7 +322,7 @@ def pack_header(header_data):
 
     #Compute the header CRC and stick it on the end
     #crc16 = mkCrcFun('crc-16')
-    header += bin_pack(crc16fun(header),HEADER_BYTELENGTHS['crc-16'])
+    header += bin_pack(crc16fun(header) ,HEADER_BYTELENGTHS['crc-16'])
 
     return header
 
@@ -286,6 +347,8 @@ def get_header(packet):
     (bytearray header) Sets header field in an bytearray. Value also has to be an bytearray.
 """
 def set_header_field(header_bytearray, field, value):
+    if type(value) is str:
+        value = value.encode('iso-8859-1')
     try:
         field_position = HEADER_LOCATIONS[field]
         field_length = HEADER_BYTELENGTHS[field]
@@ -313,7 +376,7 @@ def set_header_field(header_bytearray, field, value):
 """
 def write_header_crc(header_bytearray):
      
-    new_crc = crc16fun(str(header_bytearray[:crc16_position]))
+    new_crc = crc16fun(bytes(header_bytearray[:crc16_position]))
     
     new_crc_packed = bin_pack(new_crc,HEADER_BYTELENGTHS['crc-16'])
 
@@ -334,7 +397,8 @@ def bin_pack(n, size):
     for i in range(1, size + 1):
         packed[-i] = 0xff & (n >> (i - 1)*8)
 
-    return str(packed)
+    #return str(packed)    # for python2
+    return packed # for python3
     
     
     
@@ -351,7 +415,7 @@ def _unpack_header(packed_header):
     """
         Given a packed header, this method will return a dictionary with the unpacked contents.
 
-        :param string packed_header: A string representing a waggle header
+        :param bytes packed_header: A string representing a waggle header
         :rtype: Dictionary
         :raises IndexError: An IndexError will be raised if the packed header is not 40 bytes long
         :raises IOError: An IOError will be raised if the packet header fails its CRC-16 check
@@ -361,7 +425,7 @@ def _unpack_header(packed_header):
     if len(packed_header) != HEADER_LENGTH:
         raise IndexError("Tried to unpack a waggle header that was %d instead of %d bytes long." % (len(packed_header), HEADER_LENGTH ) )
 
-    header_IO = StringIO.StringIO(packed_header)
+    header_IO = io.BytesIO(packed_header)
 
     #Check the CRC
     #CRC16 = mkCrcFun('CRC-16')
@@ -380,6 +444,7 @@ def _unpack_header(packed_header):
         "msg_mj_type"  : _bin_unpack(header_IO.read(HEADER_BYTELENGTHS["msg_mj_type"])),         # Load message major type
         "msg_mi_type"  : _bin_unpack(header_IO.read(HEADER_BYTELENGTHS["msg_mi_type"])),         # Load message minor type
         "ext_header"   : _bin_unpack(header_IO.read(HEADER_BYTELENGTHS["ext_header"])),          # Load extended header
+        "optional_key" : _unpack_optional_key(header_IO.read(HEADER_BYTELENGTHS["optional_key"])),          # Load extended header
         "s_uniqid"     : _bin_unpack(header_IO.read(HEADER_BYTELENGTHS["s_uniqid"])),            # Load sender unique ID
         "r_uniqid"     : _bin_unpack(header_IO.read(HEADER_BYTELENGTHS["r_uniqid"])),            # Load recipient unique ID
         "snd_session"  : _bin_unpack(header_IO.read(HEADER_BYTELENGTHS["snd_session"])),         # Load send session number
@@ -391,6 +456,44 @@ def _unpack_header(packed_header):
     header_IO.close()
     return header
 
+def _unpack_optional_header(optional_key, message_body):
+    """
+        For internal use.
+        Takes a tuple representing the flags,extract information from the message body, and finally put them to a dictionary.
+
+        :param tuple optional_key: tuple(int, int, int, int, int, int, int, int)
+        :param string message_body:
+        :rtype Dictionary
+    """
+    length = 0
+    available_flags = []
+    for key in OPTIONAL_KEY_BIT_LOCATIONS:
+        index = OPTIONAL_KEY_BIT_LOCATIONS[key]
+        if optional_key[index] == 1:
+            available_flags.append(key)
+            length += OPTIONAL_KEY_BYTELENGTHS[key]
+
+    # Check header length
+    if len(message_body) < length:
+        raise IndexError("Tried to unpack a waggle optional header that was %d instead of %d bytes long." % (len(message_body), length ) )
+
+    optional_header_IO = io.BytesIO(message_body)
+    print(available_flags)
+    optional_header = {}
+    if "s_puid" in available_flags:
+
+        optional_header["s_puid"] = _bin_unpack(optional_header_IO.read(OPTIONAL_KEY_BYTELENGTHS["s_puid"]))
+
+    if "r_puid" in available_flags:
+        optional_header["r_puid"] = _bin_unpack(optional_header_IO.read(OPTIONAL_KEY_BYTELENGTHS["r_puid"]))
+
+    if "mmsg" in available_flags:
+        optional_header["mmsg"] = _bin_unpack(optional_header_IO.read(OPTIONAL_KEY_BYTELENGTHS["mmsg"]))
+
+
+    optional_header_IO.close()
+    return (optional_header, length)
+
 def _pack_flags(flags):
     """
         For internal use.
@@ -399,7 +502,7 @@ def _pack_flags(flags):
         :param tuple(int,int,bool) flags:
         :rtype: string
     """
-    return chr((flags[0] << 5) | (flags[1] << 2) | (flags[2] << 1))
+    return (flags[0] << 5) | (flags[1] << 2) | (flags[2] << 1)
 
 
 def _unpack_flags(flagByte):
@@ -412,6 +515,26 @@ def _unpack_flags(flagByte):
     """
     return ((ord(flagByte) & 0xe0) >> 5, (ord(flagByte) & 0x1c) >> 2, bool((ord(flagByte) & 0x02) >> 1))
 
+def _pack_optional_key(optional_key):
+    """
+        For internal use.
+        Takes a dictionary representing entities in optional key and packs them to one byte.
+
+        :param tuple(int, int, int, int, int, int, int, int) flags:
+        :rtype: string
+    """
+    return _pack_int((optional_key[7] << 7) | (optional_key[6] << 6) | (optional_key[5] << 5) | (optional_key[4] << 4) | (optional_key[3] << 3) | (optional_key[2] << 2) | (optional_key[1] << 1) | (optional_key[0] & 0x01), 1)
+
+
+def _unpack_optional_key(optional_keyByte):
+    """
+        For internal use.
+        Takes in the optional key byte from the header and returns a tuple containing the correct information.
+
+        :param string flagByte: The priority byte from the header
+        :rtype: tuple(int, int, int, int, int, int, int, int)
+    """
+    return ((ord(optional_keyByte) & 0x01), (ord(optional_keyByte) & 0x02) >> 1, (ord(optional_keyByte) & 0x04) >> 2, (ord(optional_keyByte) & 0x08) >> 3, (ord(optional_keyByte) & 0x10) >> 4, (ord(optional_keyByte) & 0x20) >> 5, (ord(optional_keyByte) & 0x40) >> 6, (ord(optional_keyByte) & 0x80) >> 7)
 
 def _unpack_version(version):
     """
@@ -440,7 +563,7 @@ def _pack_version(version):
     major = int(versions[0])
     minor = int(versions[1])
 
-    return chr((major << 4) | (0xf & minor))
+    return (major << 4) | (0xf & minor)
 
 
 
@@ -456,7 +579,6 @@ def _bin_unpack(string):
     x = 0
 
     for i in range(1, len(string) + 1):
-        x = x | (ord(string[-i]) << (i - 1)*8)
+        x = x | (string[-i] << (i - 1)*8)
 
     return x
-
