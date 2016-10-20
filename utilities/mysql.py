@@ -96,9 +96,9 @@ class Mysql(object):
         #return None
 
     def find_unused_port(self):
-        # first try port = 10000
-        # once port 10000 is used, find_unused_port_query can find the next unsued port number above 10000
-        row = self.query_one('SELECT * FROM nodes WHERE reverse_ssh_port = 10000;')
+        # first try port = 50000
+        # once port 50000 is used, find_unused_port_query can find the next unsued port number above 50000
+        row = self.query_one('SELECT * FROM nodes WHERE reverse_ssh_port = 50000;')
         
         if row :
     
@@ -122,12 +122,12 @@ class Mysql(object):
                 logger.error("Could not convert new port into int: %s %s %s" % (newport,str(type(e)),str(e)))
                 return None
             
-            if newport < 10000 or newport > 60000:
+            if newport < 50000 or newport > 60000:
                 logger.error("Port number %d out of range." % (newport) )
                 return None
         else:
             # This most likely means that the nodes table is still empty
-            newport = 10000
+            newport = 50000
             
         logger.debug("newport: %s" % (str(newport)))    
         return newport 
