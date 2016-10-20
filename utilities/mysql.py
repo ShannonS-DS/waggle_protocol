@@ -108,6 +108,7 @@ class Mysql(object):
                     LEFT JOIN nodes AS t2 ON t1.reverse_ssh_port+1 = t2.reverse_ssh_port            
                     WHERE t1.reverse_ssh_port IS NOT NULL 
                         AND t2.reverse_ssh_port IS NULL            
+                        AND t1.reverse_ssh_port >= 50000
                     ORDER BY t1.reverse_ssh_port LIMIT 1;"""
         
             newport = self.query_one(find_unused_port_query)
